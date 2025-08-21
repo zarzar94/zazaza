@@ -14,8 +14,12 @@
 
         body {
             font-family: 'Segoe UI', 'Arial', system-ui, -apple-system, sans-serif;
-            background: #1a5450;
-            color: #c9b037;
+            /* Set a light background for the landing page instead of dark green.
+             * A white base ensures that the site does not resemble a space/galaxy theme.
+             * Adjust text colour to maintain contrast.
+             */
+            background: #ffffff;
+            color: #1a5450;
             overflow: hidden;
             position: relative;
             direction: rtl;
@@ -26,7 +30,10 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, #1a5450 0%, #0f3835 50%, #1a5450 100%);
+            /* Lighten the game canvas background to complement the white landing page.
+             * Using a subtle light grey gradient avoids the dark space appearance.
+             */
+            background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 50%, #ffffff 100%);
             overflow: hidden;
         }
 

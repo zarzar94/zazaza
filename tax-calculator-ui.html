@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<!--
+  Interactive Syrian Tax Calculator Interface
+
+  This standalone HTML page provides a basic user interface to calculate
+  various Syrian taxes using functions defined in the accompanying
+  JavaScript. Users can select the type of tax, enter the relevant
+  inputs and view the detailed breakdown of amounts due. The page
+  supports property sale tax (Law 15/2021), property sale under the
+  July 2025 unified scheme (declared contract value), rental tax,
+  profits tax, lump‑sum tax (الدخل المقطوع), salary tax and stamp
+  duties.  All values are assumed to be in Syrian pounds (SYP).
+
+  The form controls and result displays are deliberately kept simple
+  to focus on functionality. Styling is minimal and uses RTL
+  directionality suitable for Arabic.
+-->
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>حاسبة الضرائب السورية</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+            background: #ffffff;
+            color: #1a5450;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #1a5450;
+            color: #fff;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #12423e;
+        }
+        .section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            background: #f9f9f9;
+        }
+        .hidden {
+            display: none;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            background: #eff5f4;
+            border: 1px solid #d5e5e1;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>حاسبة الضرائب السورية</h1>
+    <label for="taxType">اختر نوع الضريبة:</label>
+    <select id="taxType">
+        <option value="" disabled selected>— اختر —</option>
+        <option value="property">بيع عقار (قانون 15/2021)</option>
+        <option value="property2025">بيع عقار 2025 (القيمة العقدية)</option>
+        <option value="rent">ضريبة الإيجار العقارية</option>
+        <option value="profit">ضريبة الأرباح الحقيقية</option>
+        <option value="lump">الدخل المقطوع</option>
+        <option value="salary">ضريبة الرواتب والأجور</option>
+        <option value="stamp">رسوم الطابع</option>
+    </select>
+
+    <!-- Property Sale (Law 15/2021) -->
+    <div id="propertySection" class="section hidden">
+        <h2>بيع عقار (القانون 15 لسنة 2021)</h2>
+        <label>قيمة العقار (س.ل):
+            <input type="number" id="propValue" min="0" step="0.01" value="0">
+        </label>
+        <label>نوع العقار:
+            <select id="propType">
+                <option value="residential">سكني</option>
+                <option value="insidePlan">داخل المخطط التنظيمي</option>
+                <option value="outsidePlan">خارج المخطط التنظيمي</option>
+                <option value="commercial">تجاري</option>
+                <option value="roof">حق السطح</option>
+            </select>
+        </label>
+        <label><input type="checkbox" id="propIncludeNational" checked> تضمين المساهمة الوطنية لإعادة الإعمار</label>
+        <label><input type="checkbox" id="propIncludeLocal" checked> تضمين رسم الإدارة المحلية</label>
+        <label>نسبة المساهمة الوطنية (مثال 0.10 تعني 10٪):
+            <input type="number" id="propNationalRate" step="0.01" min="0" value="0.10">
+        </label>
+        <label>نسبة رسم الإدارة المحلية:
+            <input type="number" id="propLocalRate" step="0.01" min="0" value="0.10">
+        </label>
+        <button id="propCalculate">احسب الضريبة</button>
+        <div id="propResult" class="result hidden"></div>
+    </div>
+
+    <!-- Property Sale 2025 Contract -->
+    <div id="property2025Section" class="section hidden">
+        <h2>بيع عقار (القيمة العقدية، 2025)</h2>
+        <label>قيمة العقد (س.ل):
+            <input type="number" id="prop2025Value" min="0" step="0.01" value="0">
+        </label>
+        <label>نوع العقار:
+            <select id="prop2025Type">
+                <option value="residential">سكني</option>
+                <option value="outsidePlan">أرض خارج المخطط</option>
+                <option value="insidePlan">أرض داخل المخطط</option>
+                <option value="commercial">تجاري</option>
+            </select>
+        </label>
+        <label><input type="checkbox" id="prop2025Unified" checked> تطبيق معدل موحّد (يتضمن جميع الرسوم)</label>
+        <label>نسبة الرسوم الموحدة (افتراضي 0.33 = 33٪):
+            <input type="number" id="prop2025UnifiedRate" step="0.01" min="0" value="0.33">
+        </label>
+        <button id="prop2025Calculate">احسب الضريبة</button>
+        <div id="prop2025Result" class="result hidden"></div>
+    </div>
+
+    <!-- Rental Tax -->
+    <div id="rentSection" class="section hidden">
+        <h2>ضريبة الإيجار العقارية</h2>
+        <label>إجمالي بدل الإيجار (س.ل):
+            <input type="number" id="rentValue" min="0" step="0.01" value="0">
+        </label>
+        <label>الفئة:
+            <select id="rentCategory">
+                <option value="residentialSyrian">سكني (لمستأجر سوري)</option>
+                <option value="residentialNonSyrian">سكني (لمستأجر غير سوري)</option>
+                <option value="insidePlan">أرض داخل المخطط</option>
+                <option value="commercial">تجاري / غير سكني</option>
+            </select>
+        </label>
+        <button id="rentCalculate">احسب الضريبة</button>
+        <div id="rentResult" class="result hidden"></div>
+    </div>
+
+    <!-- Profit Tax -->
+    <div id="profitSection" class="section hidden">
+        <h2>ضريبة الأرباح الحقيقية</h2>
+        <label>صافي الربح السنوي (س.ل):
+            <input type="number" id="profitValue" min="0" step="0.01" value="0">
+        </label>
+        <button id="profitCalculate">احسب الضريبة</button>
+        <div id="profitResult" class="result hidden"></div>
+    </div>
+
+    <!-- Lump Sum Tax -->
+    <div id="lumpSection" class="section hidden">
+        <h2>الدفعة المقطوعة (تقدير الأرباح)</h2>
+        <label>إجمالي رقم الأعمال السنوي (س.ل):
+            <input type="number" id="lumpTurnover" min="0" step="0.01" value="0">
+        </label>
+        <label>نسبة الربح المقدّرة (مثال 0.07 تعني 7٪):
+            <input type="number" id="lumpRatio" min="0" step="0.001" value="0.07">
+        </label>
+        <button id="lumpCalculate">احسب الضريبة</button>
+        <div id="lumpResult" class="result hidden"></div>
+    </div>
+
+    <!-- Salary Tax -->
+    <div id="salarySection" class="section hidden">
+        <h2>ضريبة الرواتب والأجور</h2>
+        <label>الراتب الشهري الإجمالي (س.ل):
+            <input type="number" id="salaryValue" min="0" step="0.01" value="0">
+        </label>
+        <label>سنة الضريبة:
+            <select id="salaryYear">
+                <option value="2024">2024</option>
+                <option value="2025">2025 (من تموز)</option>
+            </select>
+        </label>
+        <button id="salaryCalculate">احسب الضريبة</button>
+        <div id="salaryResult" class="result hidden"></div>
+    </div>
+
+    <!-- Stamp Duty -->
+    <div id="stampSection" class="section hidden">
+        <h2>رسوم الطابع</h2>
+        <label>قيمة العقد (س.ل):
+            <input type="number" id="stampValue" min="0" step="0.01" value="0">
+        </label>
+        <label>عدد النسخ:
+            <input type="number" id="stampCopies" min="1" step="1" value="2">
+        </label>
+        <label><input type="checkbox" id="stampPayerPaysAll"> أحد الأطراف يتحمل كل الرسوم</label>
+        <button id="stampCalculate">احسب الرسوم</button>
+        <div id="stampResult" class="result hidden"></div>
+    </div>
+
+    <script>
+    /* =====================
+       Tax calculation functions
+       These are adapted from the comprehensive Syrian tax module. They are
+       defined here directly so they can be used in a browser without
+       requiring module bundlers. All values are assumed to be numbers in
+       Syrian pounds.  See comments in the original module for details.
+    ===================== */
+    // Base rates for property sale tax (Law 15/2021)
+    const PROPERTY_RATES = {
+        residential: 0.01,
+        insidePlan: 0.01,
+        outsidePlan: 0.01,
+        commercial: 0.03,
+        roof: 0.01
+    };
+    // Updated rates for property sale tax based on contract value (July 2025)
+    const PROPERTY_RATES_2025_CONTRACT = {
+        residential: 0.015,
+        outsidePlan: 0.02,
+        insidePlan: 0.03,
+        commercial: 0.04
+    };
+    function calculatePropertyTax(value, type, options = {}) {
+        const {
+            includeNationalContribution = true,
+            includeLocalAdmin = true,
+            nationalRate = 0.10,
+            localAdminRate = 0.10
+        } = options;
+        const baseTax = value * PROPERTY_RATES[type];
+        const nationalContribution = includeNationalContribution ? baseTax * nationalRate : 0;
+        const localAdministration = includeLocalAdmin ? baseTax * localAdminRate : 0;
+        const totalTax = baseTax + nationalContribution + localAdministration;
+        return { baseTax, nationalContribution, localAdministration, totalTax };
+    }
+    function calculatePropertyTaxContract2025(value, type, options = {}) {
+        const {
+            unified = true,
+            unifiedRate = 0.33,
+            includeNationalContribution = true,
+            includeLocalAdmin = true,
+            nationalRate = 0.10,
+            localAdminRate = 0.10
+        } = options;
+        const baseTax = value * PROPERTY_RATES_2025_CONTRACT[type];
+        if (unified) {
+            const unifiedSurcharge = baseTax * unifiedRate;
+            const totalTax = baseTax + unifiedSurcharge;
+            return { baseTax, unifiedSurcharge, totalTax };
+        }
+        const nationalContribution = includeNationalContribution ? baseTax * nationalRate : 0;
+        const localAdministration = includeLocalAdmin ? baseTax * localAdminRate : 0;
+        const totalTax = baseTax + nationalContribution + localAdministration;
+        return { baseTax, nationalContribution, localAdministration, totalTax };
+    }
+    // Rental tax rates for 2025
+    const RENT_RATES_2025 = {
+        residentialSyrian: 0,
+        residentialNonSyrian: 0.015,
+        insidePlan: 0.015,
+        commercial: 0.025
+    };
+    function calculateRentTax2025(value, category) {
+        return value * RENT_RATES_2025[category];
+    }
+    // Profit tax definitions
+    const profitExemption = 3000000;
+    const profitBrackets = [
+        { limit: 10000000, rate: 0.10 },
+        { limit: 30000000, rate: 0.14 },
+        { limit: 100000000, rate: 0.18 },
+        { limit: 250000000, rate: 0.22 },
+        { limit: 500000000, rate: 0.24 },
+        { limit: Infinity, rate: 0.25 }
+    ];
+    function calculateProfitTax(annualProfit, brackets = profitBrackets, exempt = profitExemption) {
+        let taxable = annualProfit - exempt;
+        if (taxable <= 0) {
+            return { breakdown: [], totalTax: 0 };
+        }
+        let remaining = taxable;
+        let previousLimit = 0;
+        const breakdown = [];
+        let totalTax = 0;
+        for (let i = 0; i < brackets.length; i++) {
+            const { limit, rate } = brackets[i];
+            const maxThisBracket = limit - previousLimit;
+            const taxableThisBracket = Math.min(remaining, maxThisBracket);
+            const taxThisBracket = taxableThisBracket * rate;
+            breakdown.push({ bracket: i + 1, taxable: taxableThisBracket, rate, tax: taxThisBracket });
+            totalTax += taxThisBracket;
+            remaining -= taxableThisBracket;
+            previousLimit = limit;
+            if (remaining <= 0) break;
+        }
+        return { breakdown, totalTax };
+    }
+    // Lump sum tax helper
+    function calculateLumpSumTax(turnover, ratio, exempt = profitExemption, brackets = profitBrackets) {
+        const estimatedProfit = turnover * ratio;
+        const { breakdown, totalTax } = calculateProfitTax(estimatedProfit, brackets, exempt);
+        const taxableProfit = Math.max(0, estimatedProfit - exempt);
+        return { estimatedProfit, taxableProfit, breakdown, totalTax };
+    }
+    // Salary tax definitions
+    const salaryBrackets2024 = [
+        { limit: 250000, rate: 0.05 },
+        { limit: 450000, rate: 0.07 },
+        { limit: 650000, rate: 0.09 },
+        { limit: 850000, rate: 0.11 },
+        { limit: 1100000, rate: 0.13 },
+        { limit: Infinity, rate: 0.15 }
+    ];
+    const salaryBrackets2025 = [
+        { limit: 250000, rate: 0.05 },
+        { limit: 450000, rate: 0.07 },
+        { limit: 650000, rate: 0.09 },
+        { limit: 850000, rate: 0.11 },
+        { limit: 1100000, rate: 0.13 },
+        { limit: Infinity, rate: 0.15 }
+    ];
+    function calculateSalaryTax(monthlyIncome, brackets, exempt = 0) {
+        let taxable = monthlyIncome - exempt;
+        if (taxable <= 0) {
+            return { breakdown: [], totalTax: 0 };
+        }
+        let remaining = taxable;
+        let previousLimit = 0;
+        const breakdown = [];
+        let totalTax = 0;
+        for (let i = 0; i < brackets.length; i++) {
+            const { limit, rate } = brackets[i];
+            const maxThisBracket = limit - previousLimit;
+            const taxableThisBracket = Math.min(remaining, maxThisBracket);
+            const taxThisBracket = taxableThisBracket * rate;
+            breakdown.push({ bracket: i + 1, taxable: taxableThisBracket, rate, tax: taxThisBracket });
+            totalTax += taxThisBracket;
+            remaining -= taxableThisBracket;
+            previousLimit = limit;
+            if (remaining <= 0) break;
+        }
+        return { breakdown, totalTax };
+    }
+    // Stamp duty helper
+    function calculateStampDuty(value, options = {}) {
+        const {
+            baseRate = 0.004,
+            nationalRate = 0.10,
+            localRate = 0.05,
+            copies = 2,
+            payerPaysAll = false
+        } = options;
+        const duty = value * baseRate;
+        const nationalSurcharge = duty * nationalRate;
+        const localSurcharge = duty * localRate;
+        const totalPerCopy = duty + nationalSurcharge + localSurcharge;
+        const totalAllCopies = payerPaysAll ? totalPerCopy * copies : totalPerCopy;
+        return { duty, nationalSurcharge, localSurcharge, totalPerCopy, totalAllCopies };
+    }
+
+    /* =====================
+       UI logic
+    ===================== */
+    const taxTypeSelect = document.getElementById('taxType');
+    taxTypeSelect.addEventListener('change', () => {
+        // Hide all sections
+        document.querySelectorAll('.section').forEach(sec => sec.classList.add('hidden'));
+        // Show selected section
+        switch (taxTypeSelect.value) {
+            case 'property':
+                document.getElementById('propertySection').classList.remove('hidden');
+                break;
+            case 'property2025':
+                document.getElementById('property2025Section').classList.remove('hidden');
+                break;
+            case 'rent':
+                document.getElementById('rentSection').classList.remove('hidden');
+                break;
+            case 'profit':
+                document.getElementById('profitSection').classList.remove('hidden');
+                break;
+            case 'lump':
+                document.getElementById('lumpSection').classList.remove('hidden');
+                break;
+            case 'salary':
+                document.getElementById('salarySection').classList.remove('hidden');
+                break;
+            case 'stamp':
+                document.getElementById('stampSection').classList.remove('hidden');
+                break;
+        }
+    });
+    // Property calculate
+    document.getElementById('propCalculate').addEventListener('click', () => {
+        const value = parseFloat(document.getElementById('propValue').value) || 0;
+        const type = document.getElementById('propType').value;
+        const includeNational = document.getElementById('propIncludeNational').checked;
+        const includeLocal = document.getElementById('propIncludeLocal').checked;
+        const nationalRate = parseFloat(document.getElementById('propNationalRate').value) || 0;
+        const localRate = parseFloat(document.getElementById('propLocalRate').value) || 0;
+        const res = calculatePropertyTax(value, type, {
+            includeNationalContribution: includeNational,
+            includeLocalAdmin: includeLocal,
+            nationalRate,
+            localAdminRate: localRate
+        });
+        const resultEl = document.getElementById('propResult');
+        resultEl.textContent = `الضريبة الأساسية: ${res.baseTax.toFixed(2)}\n` +
+            `المساهمة الوطنية: ${res.nationalContribution.toFixed(2)}\n` +
+            `رسم الإدارة المحلية: ${res.localAdministration.toFixed(2)}\n` +
+            `الإجمالي: ${res.totalTax.toFixed(2)}`;
+        resultEl.classList.remove('hidden');
+    });
+    // Property 2025 calculate
+    document.getElementById('prop2025Calculate').addEventListener('click', () => {
+        const value = parseFloat(document.getElementById('prop2025Value').value) || 0;
+        const type = document.getElementById('prop2025Type').value;
+        const unified = document.getElementById('prop2025Unified').checked;
+        const unifiedRate = parseFloat(document.getElementById('prop2025UnifiedRate').value) || 0;
+        const res = calculatePropertyTaxContract2025(value, type, { unified, unifiedRate });
+        const resultEl = document.getElementById('prop2025Result');
+        if (unified) {
+            resultEl.textContent = `الضريبة الأساسية: ${res.baseTax.toFixed(2)}\n` +
+                `الإضافة الموحدة: ${res.unifiedSurcharge.toFixed(2)}\n` +
+                `الإجمالي: ${res.totalTax.toFixed(2)}`;
+        } else {
+            resultEl.textContent = `الضريبة الأساسية: ${res.baseTax.toFixed(2)}\n` +
+                `المساهمة الوطنية: ${res.nationalContribution.toFixed(2)}\n` +
+                `رسم الإدارة المحلية: ${res.localAdministration.toFixed(2)}\n` +
+                `الإجمالي: ${res.totalTax.toFixed(2)}`;
+        }
+        resultEl.classList.remove('hidden');
+    });
+    // Rent calculate
+    document.getElementById('rentCalculate').addEventListener('click', () => {
+        const value = parseFloat(document.getElementById('rentValue').value) || 0;
+        const category = document.getElementById('rentCategory').value;
+        const tax = calculateRentTax2025(value, category);
+        const resultEl = document.getElementById('rentResult');
+        resultEl.textContent = `الضريبة: ${tax.toFixed(2)}`;
+        resultEl.classList.remove('hidden');
+    });
+    // Profit calculate
+    document.getElementById('profitCalculate').addEventListener('click', () => {
+        const profit = parseFloat(document.getElementById('profitValue').value) || 0;
+        const { breakdown, totalTax } = calculateProfitTax(profit);
+        let text = '';
+        if (breakdown.length === 0) {
+            text = 'لا توجد ضريبة مستحقة (الربح دون حد الإعفاء).';
+        } else {
+            breakdown.forEach(row => {
+                text += `شريحة ${row.bracket}: الجزء الخاضع = ${row.taxable.toFixed(2)}, النسبة = ${(row.rate*100).toFixed(2)}٪, الضريبة = ${row.tax.toFixed(2)}\n`;
+            });
+            text += `الإجمالي: ${totalTax.toFixed(2)}`;
+        }
+        const resultEl = document.getElementById('profitResult');
+        resultEl.textContent = text;
+        resultEl.classList.remove('hidden');
+    });
+    // Lump sum calculate
+    document.getElementById('lumpCalculate').addEventListener('click', () => {
+        const turnover = parseFloat(document.getElementById('lumpTurnover').value) || 0;
+        const ratio = parseFloat(document.getElementById('lumpRatio').value) || 0;
+        const { estimatedProfit, taxableProfit, breakdown, totalTax } = calculateLumpSumTax(turnover, ratio);
+        let text = `الربح المقدّر: ${estimatedProfit.toFixed(2)}\n`;
+        if (taxableProfit <= 0) {
+            text += 'لا توجد ضريبة مستحقة (الربح المقدّر لا يتجاوز حد الإعفاء).';
+        } else {
+            breakdown.forEach(row => {
+                text += `شريحة ${row.bracket}: الجزء الخاضع = ${row.taxable.toFixed(2)}, النسبة = ${(row.rate*100).toFixed(2)}٪, الضريبة = ${row.tax.toFixed(2)}\n`;
+            });
+            text += `الإجمالي: ${totalTax.toFixed(2)}`;
+        }
+        const resultEl = document.getElementById('lumpResult');
+        resultEl.textContent = text;
+        resultEl.classList.remove('hidden');
+    });
+    // Salary calculate
+    document.getElementById('salaryCalculate').addEventListener('click', () => {
+        const income = parseFloat(document.getElementById('salaryValue').value) || 0;
+        const year = document.getElementById('salaryYear').value;
+        const brackets = year === '2024' ? salaryBrackets2024 : salaryBrackets2025;
+        const exempt = year === '2024' ? 279000 : 837000;
+        const { breakdown, totalTax } = calculateSalaryTax(income, brackets, exempt);
+        let text = '';
+        if (breakdown.length === 0) {
+            text = 'لا توجد ضريبة مستحقة (الدخل دون حد الإعفاء).';
+        } else {
+            breakdown.forEach(row => {
+                text += `شريحة ${row.bracket}: الجزء الخاضع = ${row.taxable.toFixed(2)}, النسبة = ${(row.rate*100).toFixed(2)}٪, الضريبة = ${row.tax.toFixed(2)}\n`;
+            });
+            text += `الإجمالي: ${totalTax.toFixed(2)}`;
+        }
+        const resultEl = document.getElementById('salaryResult');
+        resultEl.textContent = text;
+        resultEl.classList.remove('hidden');
+    });
+    // Stamp duty calculate
+    document.getElementById('stampCalculate').addEventListener('click', () => {
+        const value = parseFloat(document.getElementById('stampValue').value) || 0;
+        const copies = parseInt(document.getElementById('stampCopies').value, 10) || 2;
+        const payerPaysAll = document.getElementById('stampPayerPaysAll').checked;
+        const { duty, nationalSurcharge, localSurcharge, totalPerCopy, totalAllCopies } = calculateStampDuty(value, { copies, payerPaysAll });
+        const resultEl = document.getElementById('stampResult');
+        let text = '';
+        text += `الرسم الأساسي للنسخة: ${duty.toFixed(2)}\n`;
+        text += `المساهمة الوطنية على النسخة: ${nationalSurcharge.toFixed(2)}\n`;
+        text += `رسم الإدارة المحلية للنسخة: ${localSurcharge.toFixed(2)}\n`;
+        text += `الإجمالي للنسخة الواحدة: ${totalPerCopy.toFixed(2)}\n`;
+        if (payerPaysAll) {
+            text += `الإجمالي لجميع النسخ: ${totalAllCopies.toFixed(2)}`;
+        }
+        resultEl.textContent = text;
+        resultEl.classList.remove('hidden');
+    });
+    </script>
+</body>
+</html>
