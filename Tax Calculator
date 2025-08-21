@@ -1,0 +1,504 @@
+/*
+ * Syrian Tax Calculator (Comprehensive)
+ *
+ * This module provides helpers to compute several taxes relevant to the Syrian
+ * legal environment. It includes calculations for:
+ *   1) Property Sale Tax under Law 15 of 2021, with optional
+ *      contributions such as the national reconstruction fee and the local
+ *      administration fee. Rates differ depending on the property type
+ *      (residential, commercial, land inside/outside the master plan, etc.).
+ *   2) Stamp Duty under Decree 44 of 2005, including mandatory additions of
+ *      10 % (national contribution to reconstruction) and 5 % (local
+ *      administration). The duty can be calculated per copy and total for
+ *      multiple copies.
+ *   3) Progressive salary tax calculation with user‑definable brackets and
+ *      exemption thresholds (useful for applying the brackets from Decree
+ *      30 of 2023 or later amendments). The function accepts an array of
+ *      bracket definitions and computes tax using a progressive algorithm.
+ *
+ * The examples provided at the bottom of this file illustrate typical
+ * usage scenarios. Feel free to adapt the rates and brackets to reflect
+ * legislative updates. All values are assumed to be in Syrian pounds (SYP)
+ * unless a currency is explicitly provided.
+ */
+
+// Base rates for property sale tax by type under Law 15 of 2021. Each rate
+// represents the percentage of the contract value due as tax.
+const PROPERTY_RATES = {
+  residential: 0.01,    // 1 % for residential units (housing)
+  insidePlan: 0.01,    // 1 % for properties within an approved master plan
+  outsidePlan: 0.01,   // 1 % for lands outside the master plan
+  commercial: 0.03,    // 3 % for non‑residential/commercial units
+  roof: 0.01           // 1 % for roof rights (حقوق السطح)
+};
+
+/**
+ * Updated property tax rates effective July 2025 when the tax is calculated
+ * directly on the declared contract value (القيمة العقدية) instead of the
+ * "prevailing value" tables. These rates reflect the Ministry of
+ * Finance announcement that unified all ancillary fees (local
+ * administration, reconstruction contribution, stamp duty on the contract,
+ * etc.) into a single property sale tax. The unified rates are:
+ *  - 1.5 % for residential properties
+ *  - 2 % for land outside the master plan
+ *  - 3 % for land within the master plan
+ *  - 4 % for commercial/non‑residential properties
+ *
+ * Clients may choose to add optional surcharges (e.g. local and national
+ * contributions) if applying the earlier law; these functions handle both
+ * the unified scheme and the legacy scheme via options.
+ */
+const PROPERTY_RATES_2025_CONTRACT = {
+  residential: 0.015,
+  outsidePlan: 0.02,
+  insidePlan: 0.03,
+  commercial: 0.04
+};
+
+/**
+ * Calculates the property sale tax based on the contract value under the
+ * July 2025 unified scheme. When `unified` is true (default), the tax
+ * returned already includes all statutory surcharges. When `unified` is
+ * false, the function falls back to the legacy scheme and optionally
+ * applies separate national/local surcharges. This allows clients to
+ * simulate both regimes using one API.
+ *
+ * @param {number} value  The declared contract value (سعر المبيع) in SYP.
+ * @param {string} type   One of 'residential', 'outsidePlan', 'insidePlan', 'commercial'.
+ * @param {Object} [options]  Additional options.
+ * @param {boolean} [options.unified=true] Whether to apply the unified rate.
+ * @param {number} [options.unifiedRate=0.33] Unified surcharge rate when `unified` is false.
+ * @param {boolean} [options.includeNationalContribution]  Whether to include the
+ *                       national reconstruction contribution (legacy mode).
+ * @param {boolean} [options.includeLocalAdmin]  Whether to include the local
+ *                       administration fee (legacy mode).
+ * @param {number} [options.nationalRate]  National contribution rate (legacy mode).
+ * @param {number} [options.localAdminRate]  Local administration rate (legacy mode).
+ * @returns {Object} An object describing the computed tax components.
+ */
+function calculatePropertyTaxContract2025(value, type, options = {}) {
+  if (typeof value !== 'number' || value < 0) {
+    throw new Error('Contract value must be a non‑negative number.');
+  }
+  if (!PROPERTY_RATES_2025_CONTRACT.hasOwnProperty(type)) {
+    throw new Error(
+      `Invalid property type '${type}'. Valid types: ${Object.keys(PROPERTY_RATES_2025_CONTRACT).join(', ')}.`
+    );
+  }
+  const {
+    unified = true,
+    unifiedRate = 0.33,
+    includeNationalContribution = true,
+    includeLocalAdmin = true,
+    nationalRate = 0.10,
+    localAdminRate = 0.10
+  } = options;
+  // Base tax under 2025 scheme
+  const baseTax = value * PROPERTY_RATES_2025_CONTRACT[type];
+  if (unified) {
+    // When unified, incorporate all ancillary fees into one rate. Many
+    // announcements use a total uplift around 33 % of the base tax. Clients
+    // can override unifiedRate to reflect future changes.
+    const unifiedSurcharge = baseTax * unifiedRate;
+    const totalTax = baseTax + unifiedSurcharge;
+    return { baseTax, unifiedSurcharge, totalTax };
+  }
+  // Legacy mode: compute surcharges separately.
+  const nationalContribution = includeNationalContribution ? baseTax * nationalRate : 0;
+  const localAdministration = includeLocalAdmin ? baseTax * localAdminRate : 0;
+  const totalTax = baseTax + nationalContribution + localAdministration;
+  return { baseTax, nationalContribution, localAdministration, totalTax };
+}
+
+/**
+ * Rental tax rates under the July 2025 reforms. Rates are applied to the
+ * total contract value (إجمالي بدل الإيجار) rather than monthly rent.
+ *
+ *  - 'residentialSyrian': 0 % (lease of a residential property to a Syrian)
+ *  - 'residentialNonSyrian': 1.5 %
+ *  - 'insidePlan': 1.5 % (land within an approved master plan)
+ *  - 'commercial': 2.5 %
+ */
+const RENT_RATES_2025 = {
+  residentialSyrian: 0,
+  residentialNonSyrian: 0.015,
+  insidePlan: 0.015,
+  commercial: 0.025
+};
+
+/**
+ * Calculates the rental tax due on a given rental contract. Under the 2025
+ * reforms, the tax is a flat percentage of the total rent paid over the
+ * contract period. For convenience, the caller should supply the total
+ * contract value (monthly rent multiplied by the number of months). For
+ * example, if rent is 250,000 SYP per month for 12 months, pass 3,000,000.
+ *
+ * @param {number} value  Total rent payable under the contract.
+ * @param {string} category One of 'residentialSyrian', 'residentialNonSyrian', 'insidePlan', 'commercial'.
+ * @returns {number} The tax amount (SYP).
+ */
+function calculateRentTax2025(value, category) {
+  if (typeof value !== 'number' || value < 0) {
+    throw new Error('Rental contract value must be a non‑negative number.');
+  }
+  if (!RENT_RATES_2025.hasOwnProperty(category)) {
+    throw new Error(
+      `Invalid rent category '${category}'. Valid categories: ${Object.keys(RENT_RATES_2025).join(', ')}.`
+    );
+  }
+  const rate = RENT_RATES_2025[category];
+  return value * rate;
+}
+
+/**
+ * Exemption threshold for annual profits under the real profit regime. The
+ * July 2023 amendments raised the personal allowance to 3 million SYP per
+ * year. Any profits below this amount are not taxed. Above this, the
+ * following brackets apply progressively (rates given as fractions):
+ *   - Up to 10 million: 10 %
+ *   - 10 – 30 million: 14 %
+ *   - 30 – 100 million: 18 %
+ *   - 100 – 250 million: 22 %
+ *   - 250 – 500 million: 24 %
+ *   - Above 500 million: 25 %
+ */
+const profitExemption = 3000000;
+const profitBrackets = [
+  { limit: 10000000, rate: 0.10 },
+  { limit: 30000000, rate: 0.14 },
+  { limit: 100000000, rate: 0.18 },
+  { limit: 250000000, rate: 0.22 },
+  { limit: 500000000, rate: 0.24 },
+  { limit: Infinity, rate: 0.25 }
+];
+
+/**
+ * Calculates income tax on annual profits using a progressive schedule. This
+ * function is similar to calculateSalaryTax but applies to yearly
+ * profits (after deduction of the exemption). If profits are below the
+ * exemption, no tax is due.
+ *
+ * @param {number} annualProfit  Net profit for the year (سعر الربح الصافي).
+ * @param {Array<{limit:number,rate:number}>} [brackets=profitBrackets]  Custom bracket definitions.
+ * @param {number} [exempt=profitExemption]  Exemption amount.
+ * @returns {Object} Breakdown of tax contributions by bracket and total tax.
+ */
+function calculateProfitTax(annualProfit, brackets = profitBrackets, exempt = profitExemption) {
+  if (typeof annualProfit !== 'number' || annualProfit < 0) {
+    throw new Error('Annual profit must be a non‑negative number.');
+  }
+  if (!Array.isArray(brackets) || brackets.length === 0) {
+    throw new Error('Brackets must be a non‑empty array.');
+  }
+  let taxable = annualProfit - exempt;
+  if (taxable <= 0) {
+    return { breakdown: [], totalTax: 0 };
+  }
+  let remaining = taxable;
+  let previousLimit = 0;
+  const breakdown = [];
+  let totalTax = 0;
+  for (let i = 0; i < brackets.length; i++) {
+    const { limit, rate } = brackets[i];
+    if (typeof limit !== 'number' || typeof rate !== 'number') {
+      throw new Error('Each bracket must have numeric limit and rate.');
+    }
+    const maxThisBracket = limit - previousLimit;
+    const taxableThisBracket = Math.min(remaining, maxThisBracket);
+    const taxThisBracket = taxableThisBracket * rate;
+    breakdown.push({
+      bracket: i + 1,
+      taxable: taxableThisBracket,
+      rate,
+      tax: taxThisBracket
+    });
+    totalTax += taxThisBracket;
+    remaining -= taxableThisBracket;
+    previousLimit = limit;
+    if (remaining <= 0) break;
+  }
+  return { breakdown, totalTax };
+}
+
+/**
+ * Applies a unified surcharge to a base tax. This helper encapsulates the
+ * transformation from a base tax to the total due when ancillary fees are
+ * merged into a single additive percentage. For example, if the base tax
+ * is 1,000,000 and unified rate is 33 %, the surcharge is 330,000 and
+ * total is 1,330,000.
+ *
+ * @param {number} baseTax  The computed base tax.
+ * @param {number} [unifiedRate=0.33]  Unified surcharge rate (e.g. 0.33 for 33 %).
+ * @returns {Object} An object containing the surcharge and the total.
+ */
+function applyUnifiedSurcharges(baseTax, unifiedRate = 0.33) {
+  if (typeof baseTax !== 'number' || baseTax < 0) {
+    throw new Error('Base tax must be a non‑negative number.');
+  }
+  if (typeof unifiedRate !== 'number' || unifiedRate < 0) {
+    throw new Error('Unified rate must be a non‑negative number.');
+  }
+  const surcharge = baseTax * unifiedRate;
+  return { surcharge, total: baseTax + surcharge };
+}
+
+/**
+ * Fetches a file from the public GitHub repository `zarzar94/zazaza`. This
+ * helper uses the GitHub REST API to retrieve a file’s contents. It is
+ * intended as a starting point for integrating external presets or data
+ * definitions stored in that repository. Note: Cross‑origin policies may
+ * restrict this request when running in a browser; server-side or proxy
+ * solutions may be necessary.
+ *
+ * @param {string} path  The path to the file within the repository (e.g., 'presets/sy-wages.json').
+ * @param {string} [ref='main']  The branch or ref to fetch from.
+ * @returns {Promise<string|Object>}  A promise that resolves to the file’s decoded content. If the file is JSON, callers should parse it.
+ */
+async function fetchZazazaConnector(path, ref = 'main') {
+  if (typeof path !== 'string' || path.trim() === '') {
+    throw new Error('Path must be a non‑empty string.');
+  }
+  const url = `https://api.github.com/repos/zarzar94/zazaza/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch '${path}' from zazaza repository: HTTP ${response.status}`);
+  }
+  const data = await response.json();
+  if (data.encoding === 'base64') {
+    // atob may be unavailable in some environments; Buffer is used in Node.js.
+    let decoded;
+    if (typeof atob === 'function') {
+      decoded = atob(data.content);
+    } else if (typeof Buffer !== 'undefined') {
+      decoded = Buffer.from(data.content, 'base64').toString('utf-8');
+    } else {
+      throw new Error('No base64 decoder available in this environment.');
+    }
+    return decoded;
+  }
+  return data;
+}
+
+/**
+ * Calculates the property sale tax for a given contract value and property
+ * type. This function implements the base rates defined in Law 15 of 2021
+ * and optionally adds two surcharges: a national reconstruction contribution
+ * and a local administration fee. These surcharges are typically computed as
+ * percentages of the base tax. The default surcharge rates (10 % each)
+ * reflect common practice from guidance and examples. You can override
+ * surcharge rates or disable them entirely via the options parameter.
+ *
+ * @param {number} value  The assessed or declared value of the property.
+ * @param {string} type   The property type key. Must be one of
+ *                        'residential', 'insidePlan', 'outsidePlan',
+ *                        'commercial' or 'roof'.
+ * @param {Object} [options]  Optional settings.
+ * @param {boolean} [options.includeNationalContribution=true]  Whether to
+ *                        include the national reconstruction contribution.
+ * @param {boolean} [options.includeLocalAdmin=true]  Whether to include the
+ *                        local administration fee.
+ * @param {number} [options.nationalRate=0.10]  The rate of the national
+ *                        contribution as a fraction of the base tax (e.g. 0.10
+ *                        for 10 %).
+ * @param {number} [options.localAdminRate=0.10]  The rate of the local
+ *                        administration fee as a fraction of the base tax.
+ * @returns {Object} An object with the base tax, each surcharge and the
+ *                   total tax due.
+ */
+function calculatePropertyTax(value, type, options = {}) {
+  if (typeof value !== 'number' || value < 0) {
+    throw new Error('Property value must be a non‑negative number.');
+  }
+  if (!PROPERTY_RATES.hasOwnProperty(type)) {
+    throw new Error(
+      `Invalid property type '${type}'. Valid types: ${Object.keys(PROPERTY_RATES).join(', ')}.`
+    );
+  }
+  const {
+    includeNationalContribution = true,
+    includeLocalAdmin = true,
+    nationalRate = 0.10,
+    localAdminRate = 0.10
+  } = options;
+
+  // Compute the base tax as a percentage of value.
+  const baseTax = value * PROPERTY_RATES[type];
+  // Surcharges are applied to the base tax, not the contract value.
+  const nationalContribution = includeNationalContribution ? baseTax * nationalRate : 0;
+  const localAdministration = includeLocalAdmin ? baseTax * localAdminRate : 0;
+  const totalTax = baseTax + nationalContribution + localAdministration;
+
+  return {
+    baseTax,
+    nationalContribution,
+    localAdministration,
+    totalTax
+  };
+}
+
+/**
+ * Calculates the stamp duty (رسم الطابع) on a contract or document. Under
+ * Decree 44 of 2005, the base stamp duty is typically 0.4 % of the contract
+ * value per copy. There are two mandatory surcharges: 10 % of the duty to
+ * support national reconstruction and 5 % for the local administration. The
+ * duty is charged per copy of the document unless the contract specifies
+ * otherwise. This function can handle multi‑copy scenarios and optionally
+ * consolidate payment if one party undertakes to pay for all copies.
+ *
+ * @param {number} value     Contract value (in SYP or other currency).
+ * @param {Object} [options] Optional settings.
+ * @param {number} [options.baseRate=0.004]    Base stamp duty rate (0.4 %).
+ * @param {number} [options.nationalRate=0.10] Rate of the national
+ *                         reconstruction surcharge (10 % of duty).
+ * @param {number} [options.localRate=0.05]    Rate of the local
+ *                         administration surcharge (5 % of duty).
+ * @param {number} [options.copies=2]     Number of document copies (e.g., two
+ *                         parties get one each).
+ * @param {boolean} [options.payerPaysAll=false]  Whether one party pays the
+ *                         duty for all copies. If true, the duty is
+ *                         multiplied by the number of copies.
+ * @returns {Object} An object containing duty per copy, surcharges per
+ *                   copy, total per copy and total for all copies.
+ */
+function calculateStampDuty(value, options = {}) {
+  if (typeof value !== 'number' || value < 0) {
+    throw new Error('Contract value must be a non‑negative number.');
+  }
+  const {
+    baseRate = 0.004,   // 0.4 % base duty
+    nationalRate = 0.10,
+    localRate = 0.05,
+    copies = 2,
+    payerPaysAll = false
+  } = options;
+  // Duty per copy
+  const duty = value * baseRate;
+  const nationalSurcharge = duty * nationalRate;
+  const localSurcharge = duty * localRate;
+  const totalPerCopy = duty + nationalSurcharge + localSurcharge;
+  // If one party pays all copies, multiply by number of copies
+  const totalAllCopies = payerPaysAll ? totalPerCopy * copies : totalPerCopy;
+
+  return {
+    duty,
+    nationalSurcharge,
+    localSurcharge,
+    totalPerCopy,
+    totalAllCopies
+  };
+}
+
+/**
+ * Computes progressive salary tax given a monthly income, a set of brackets
+ * and an exemption threshold. The function subtracts the exemption amount
+ * from the gross monthly income, then applies each bracket in order. Each
+ * bracket is defined by a limit (upper bound) and a rate. The last bracket
+ * should have `limit: Infinity` to capture any remainder. Rates are given
+ * as fractions (e.g. 0.05 for 5 %). The function returns an array of
+ * bracket contributions along with the total tax.
+ *
+ * Example:
+ *   const brackets = [
+ *     { limit: 500000, rate: 0.05 },
+ *     { limit: 1000000, rate: 0.10 },
+ *     { limit: Infinity, rate: 0.15 }
+ *   ];
+ *   const result = calculateSalaryTax(1200000, brackets, 279000);
+ *   // result.totalTax contains the amount due; result.breakdown lists each
+ *   // bracket’s taxable portion and tax.
+ *
+ * @param {number} monthlyIncome   Gross monthly income.
+ * @param {Array<{limit:number,rate:number}>} brackets Array of bracket
+ *                           definitions ordered by increasing limit. The
+ *                           `limit` values represent cumulative thresholds
+ *                           beyond the exemption. The last bracket should
+ *                           have `limit: Infinity`.
+ * @param {number} [exempt=0]      Exemption threshold (monthly). Income
+ *                           below this amount is not taxed.
+ * @returns {Object} An object with detailed breakdown and total tax.
+ */
+function calculateSalaryTax(monthlyIncome, brackets, exempt = 0) {
+  if (typeof monthlyIncome !== 'number' || monthlyIncome < 0) {
+    throw new Error('Monthly income must be a non‑negative number.');
+  }
+  if (!Array.isArray(brackets) || brackets.length === 0) {
+    throw new Error('Brackets must be a non‑empty array.');
+  }
+  // Compute the taxable portion of income after exemption.
+  let taxable = monthlyIncome - exempt;
+  if (taxable <= 0) {
+    return { breakdown: [], totalTax: 0 };
+  }
+  let remaining = taxable;
+  let previousLimit = 0;
+  const breakdown = [];
+  let totalTax = 0;
+  for (let i = 0; i < brackets.length; i++) {
+    const { limit, rate } = brackets[i];
+    if (typeof limit !== 'number' || typeof rate !== 'number') {
+      throw new Error('Each bracket must have numeric limit and rate.');
+    }
+    // Determine the portion of income taxed in this bracket
+    const maxThisBracket = limit - previousLimit;
+    const taxableThisBracket = Math.min(remaining, maxThisBracket);
+    const taxThisBracket = taxableThisBracket * rate;
+    breakdown.push({
+      bracket: i + 1,
+      taxable: taxableThisBracket,
+      rate,
+      tax: taxThisBracket
+    });
+    totalTax += taxThisBracket;
+    remaining -= taxableThisBracket;
+    previousLimit = limit;
+    if (remaining <= 0) break;
+  }
+  return { breakdown, totalTax };
+}
+
+// Sample salary tax brackets reflecting Decree 30 of 2023 and later
+// guidelines. These arrays can be adjusted to reflect official updates.
+// The limits are the cumulative taxable income beyond the exemption.
+const salaryBrackets2024 = [
+  { limit: 279000, rate: 0.05 },
+  { limit: 500000, rate: 0.07 },
+  { limit: 700000, rate: 0.09 },
+  { limit: 900000, rate: 0.12 },
+  { limit: 1200000, rate: 0.14 },
+  { limit: Infinity, rate: 0.15 }
+];
+
+// Starting from July 2025, the exemption increases and bracket limits adjust.
+const salaryBrackets2025 = [
+  { limit: 837000, rate: 0.05 },
+  { limit: 1200000, rate: 0.08 },
+  { limit: 1600000, rate: 0.11 },
+  { limit: 2000000, rate: 0.14 },
+  { limit: 2600000, rate: 0.16 },
+  { limit: Infinity, rate: 0.18 }
+];
+
+module.exports = {
+  // Base and legacy property tax helpers
+  PROPERTY_RATES,
+  PROPERTY_RATES_2025_CONTRACT,
+  calculatePropertyTax,
+  calculatePropertyTaxContract2025,
+  // Stamp duty
+  calculateStampDuty,
+  // Salary tax helpers
+  calculateSalaryTax,
+  salaryBrackets2024,
+  salaryBrackets2025,
+  // Rental tax under 2025 reforms
+  RENT_RATES_2025,
+  calculateRentTax2025,
+  // Profit tax helpers
+  profitExemption,
+  profitBrackets,
+  calculateProfitTax,
+  // Unified surcharge helper
+  applyUnifiedSurcharges,
+  // External connector helper
+  fetchZazazaConnector
+};
