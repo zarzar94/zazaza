@@ -2570,7 +2570,12 @@ function navigateToService(route) {
         const serviceType = route === '/suggestions' ? 'suggestions' : 'complaints';
         openWizard(serviceType);
         return;
-    }
+   
+        // Redirect to the interactive tax calculator if requested
+    if (route === '/tax-calculator') {
+        window.location.href = 'tax-calculator-ui.html';
+       return;
+  }
 
     // For any other route, politely inform the user and keep them on the current page
     if (!route || route === '#' || typeof route !== 'string') {
