@@ -195,16 +195,24 @@
     <!-- Stamp Duty -->
     <div id="stampSection" class="section hidden">
         <h2>رسوم الطابع</h2>
-        <label>قيمة العقد (س.ل):
-            <input type="number" id="stampValue" min="0" step="0.01" value="0">
-        </label>
-        <label>عدد النسخ:
-            <input type="number" id="stampCopies" min="1" step="1" value="2">
-        </label>
+              <label>الفئة:</u003c/label>
+        <select id="stampCategory"></select>
+        <label>قيمة الأساس (س.ل):</label>
+        <input type="number" id="stampValue" min="0" step="0.01" value="0">
+        <div id="stampCapitalContainer" class="hidden">
+            <label>رأس المال (س.ل):</label>
+            <input type="number" id="stampCapital" min="0" step="0.01" value="0">
+        </div>
+        <div id="stampPublicOfferContainer" class="hidden">
+            <label><input type="checkbox" id="stampPublicOffer"> طرح أسهم للاكتتاب العام</label>
+        </div>
+        <label>عدد النسخ:</label>
+        <input type="number" id="stampCopies" min="1" step="1" value="2">
         <label><input type="checkbox" id="stampPayerPaysAll"> أحد الأطراف يتحمل كل الرسوم</label>
         <button id="stampCalculate">احسب الرسوم</button>
         <div id="stampResult" class="result hidden"></div>
-    </div>
+
+        </div>
 
     <script>
     /* =====================
@@ -504,23 +512,131 @@
         resultEl.textContent = text;
         resultEl.classList.remove('hidden');
     });
-    // Stamp duty calculate
+   const STAMP_CATEGORIES = {
+  general: { label: 'عقد يحتوي على مبلغ مالي', type: 'percentage', rate: 0.004 },
+  publicWorks: { label: 'عقد مقاولة أو أشغال عامة', type: 'percentage', rate: 0.007 },
+  loan: { label: 'عقد قرض', type: 'percentage', rate: 0.003 },
+  guarantee: { label: 'كفالة مالية', type: 'percentage', rate: 0.003 },
+  guaranteeExtension: { label: 'تمديد كفالة بدون زيادة', type: 'percentage', rate: 0.0015 },
+  guaranteeIncrease: { label: 'زيادة مبلغ الكفالة', type: 'percentage', rate: 0.003 },
+  partnershipFormation: { label: 'تأسيس شركة أشخاص', type: 'mixed', baseFee: 25000, rate: 0.005 },
+  jointStockFormation: { label: 'تأسيس شركة مساهمة / قابضة', type: 'mixed', rate: 0.005, publicRate: 0.0025 },
+  llcFormation: { label: 'تأسيس شركة محدودة المسؤولية', type: 'mixed', baseFee: 25000, rate: 0.005 },
+  insuranceDocument: { label: 'عقود التأمين', type: 'fixed', amount: 5000 },
+  documentWithoutAmount: { label: 'وثيقة بلا مبلغ', type: 'fixed', amount: 5000 }
+};
+
+// Populate the stamp category dropdown
+function populateStampCategories() {
+  const select = document.getElementById('stampCategory');
+  select.innerHTML = '';
+  Object.keys(STAMP_CATEGORIES).forEach(key => {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = STAMP_CATEGORIES[key].label;
+    select.appendChild(option);
+  });
+}
+
+// Show/hide additional inputs based on category
+document.getElementById('stampCategory').addEventListener('change', () => {
+  const selected = document.getElementById('stampCategory').value;
+  const category = STAMP_CATEGORIES[selected];
+  const capitalContainer = document.getElementById('stampCapitalContainer');
+  const publicOfferContainer = document.getElementById('stampPublicOfferContainer');
+  if (category && category.type === 'mixed') {
+    capitalContainer.classList.remove('hidden');
+    if (category.publicRate) {
+      publicOfferContainer.classList.remove('hidden');
+    } else {
+      publicOfferContainer.classList.add('hidden');
+    }
+  } else {
+    capitalContainer.classList.add('hidden');
+    publicOfferContainer.classList.add('hidden');
+  }
+});
+
+// Initialize categories on page load
+populateStampCategories();
+ // S
+      document.getElementById('stampCalculate').addEventListener('click', () => {
+  const categoryKey = document.getElementById('stampCategory').value;
+  const category = STAMP_CATEGORIES[categoryKey];
+  const value = parseFloat(document.getElementById('stampValue').value) || 0;
+  const capital = parseFloat(document.getElementById('stampCapital').value) || 0;
+  const publicOffer = document.getElementById('stampPublicOffer').checked;
+  const copies = parseInt(document.getElementById('stampCopies').value, 10) || 1;
+  const payerPaysAll = document.getElementById('stampPayerPaysAll').checked;
+  let baseDuty = 0;
+  if (category) {
+    if (category.type === 'percentage') {
+      baseDuty = value * category.rate;
     document.getElementById('stampCalculate').addEventListener('click', () => {
-        const value = parseFloat(document.getElementById('stampValue').value) || 0;
-        const copies = parseInt(document.getElementById('stampCopies').value, 10) || 2;
-        const payerPaysAll = document.getElementById('stampPayerPaysAll').checked;
-        const { duty, nationalSurcharge, localSurcharge, totalPerCopy, totalAllCopies } = calculateStampDuty(value, { copies, payerPaysAll });
-        const resultEl = document.getElementById('stampResult');
-        let text = '';
-        text += `الرسم الأساسي للنسخة: ${duty.toFixed(2)}\n`;
-        text += `المساهمة الوطنية على النسخة: ${nationalSurcharge.toFixed(2)}\n`;
-        text += `رسم الإدارة المحلية للنسخة: ${localSurcharge.toFixed(2)}\n`;
-        text += `الإجمالي للنسخة الواحدة: ${totalPerCopy.toFixed(2)}\n`;
-        if (payerPaysAll) {
-            text += `الإجمالي لجميع النسخ: ${totalAllCopies.toFixed(2)}`;
-        }
-        resultEl.textContent = text;
-        resultEl.classList.remove('hidden');
+  const categoryKey = document.getElementById('stampCategory').value;
+  const category = STAMP_CATEGORIES[categoryKey];
+  const value = parseFloat(document.getElementById('stampValue').value) || 0;
+  const capital = parseFloat(document.getElementById('stampCapital').value) || 0;
+  const publicOffer = document.getElementById('stampPublicOffer').checked;
+  const copies = parseInt(document.getElementById('stampCopies').value, 10) || 1;
+  const payerPaysAll = document.getElementById('stampPayerPaysAll').checked;
+  let baseDuty = 0;
+  if (category) {
+    if (category.type === 'percentage') {
+      baseDuty = value * category.rate;
+    } else if (category.type === 'fixed') {
+      baseDuty = category.amount;
+    } else if (category.type === 'mixed') {
+      const rate = (publicOffer && category.publicRate) ? category.publicRate : category.rate;
+      baseDuty = (category.baseFee || 0) + capital * rate;
+      if (category.minFee && baseDuty < category.minFee) {
+        baseDuty = category.minFee;
+      }
+    }
+  }
+  const duty = baseDuty;
+  const nationalSurcharge = duty * 0.10;
+  const localSurcharge = duty * 0.05;
+  const totalPerCopy = duty + nationalSurcharge + localSurcharge;
+  const totalAllCopies = totalPerCopy * copies;
+  let text = '';
+  text += `\u0627\u0644\u0631\u0633\u0648\u0645 \u0627\u0644\u0623\u0633\u0627\u0633\u064a\u0629 \u0639\u0644\u0649 \u0627\u0644\u0646\u0633\u062e\u0629 = ${duty.toFixed(2)} \u0644.\u0633\n`;
+  text += `\u0627\u0644\u0645\u0633\u0627\u0647\u0645\u0629 \u0627\u0644\u0648\u0637\u0646\u064a\u0629 \u0639\u0644\u0649 \u0627\u0644\u0646\u0633\u062e\u0629 = ${nationalSurcharge.toFixed(2)} \u0644.\u0633\n`;
+  text += `\u0631\u0633\u0645 \u0627\u0644\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0645\u062d\u0644\u064a\u0629 \u0644\u0644\u0646\u0633\u062e\u0629 = ${localSurcharge.toFixed(2)} \u0644.\u0633\n`;
+  text += `\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a \u0644\u0644\u0646\u0633\u062e\u0629 \u0627\u0644\u0648\u0627\u062d\u062f\u0629 = ${totalPerCopy.toFixed(2)} \u0644.\u0633\n`;
+  if (copies > 1) {
+    if (payerPaysAll) {
+      text += `\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a \u0644\u062c\u0645\u064a\u0639 \u0627\u0644\u0646\u0633\u062e = ${totalAllCopies.toFixed(2)} \u0644.\u0633\n`;
+    } else {
+      text += `\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a \u0644\u062c\u0645\u064a\u0639 \u0627\u0644\u0646\u0633\u062e (\u0643\u0644 \u0637\u0631\u0641 \u064a\u062f\u0641\u0639 \u0646\u0633\u062e\u062a\u0647) = ${totalAllCopies.toFixed(2)} \u0644.\u0633\n`;
+    }
+  }
+  const resultEl = document.getElementById('stampResult');
+  resultEl.textContent = text;
+  resultEl.classList.remove('hidden');
+});
+ const nationalSurcharge = duty * 0.10;
+  const localSurcharge = duty * 0.05;
+  const totalPerCopy = duty + nationalSurcharge + localSurcharge;
+  const totalAllCopies = totalPerCopy * copies;
+  let text = '';
+  text += `الرسوم الأساسية على النسخة = ${duty.toFixed(2)} ل.س\n`;
+  text += `المساهمة الوطنية على النسخة = ${nationalSurcharge.toFixed(2)} ل.س\n`;
+  text += `رسم الإدارة المحلية للنسخة = ${localSurcharge.toFixed(2)} ل.س\n`;
+  text += `الإجمالي للنسخة الواحدة = ${totalPerCopy.toFixed(2)} ل.س\n`;
+  if (copies > 1) {
+    if (payerPaysAll) {
+      text += `الإجمالي لجميع النسخ = ${totalAllCopies.toFixed(2)} ل.س\n`;
+    } else {
+      text += `الإجمالي لجميع النسخ (\u0643ل \u0637رف \u064a\u062f\u0641\u0639 \u0646\u0633\u062e\u062a\u0647) = ${totalAllCopies.toFixed(2)} ل.س\n`;
+    }
+  }
+  const resultEl = document.getElementById('stampResult');
+  resultEl.textContent = text;
+  resultEl.classList.remove('hidden');
+});
+tamp duty calculate
+ 
     });
     </script>
 </body>
