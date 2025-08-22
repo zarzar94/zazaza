@@ -33,7 +33,6 @@
     <option value="profitCompare">مقارنة القوانين (24/51/30)</option>
   </select>
 
-  <!-- ====== الأقسام ====== -->
   <div id="propertySection" class="section hidden">
     <h2>بيع عقار (القانون 15 لسنة 2021)</h2>
     <label>قيمة العقار (ل.س): <input type="number" id="propValue"></label>
@@ -110,13 +109,6 @@
     <select id="stampCategory"></select>
     <label>قيمة الأساس (ل.س):</label>
     <input type="number" id="stampValue">
-    <div id="stampCapitalContainer" class="hidden">
-      <label>رأس المال (ل.س):</label>
-      <input type="number" id="stampCapital">
-    </div>
-    <div id="stampPublicOfferContainer" class="hidden">
-      <label><input type="checkbox" id="stampPublicOffer"> طرح أسهم للاكتتاب العام</label>
-    </div>
     <label>عدد النسخ:</label>
     <input type="number" id="stampCopies" value="2">
     <button id="stampCalculate">احسب الرسوم</button>
@@ -143,190 +135,7 @@
   </div>
 
 <script>
-// ========== منطق التبديل بين الأقسام ==========
-document.getElementById('taxType').addEventListener('change', e=>{
-  document.querySelectorAll('.section').forEach(sec=>sec.classList.add('hidden'));
-  document.getElementById(e.target.value+'Section')?.classList.remove('hidden');
-});
-
-// ========== رسوم الطابع ==========
-const STAMP_CATEGORIES={general:{type:'percentage',rate:0.004,label:'عقد بمبلغ محدد'},guarantee:{type:'percentage',rate:0.003,label:'كفالة مالية'},insurance:{type:'fixed',amount:5000,label:'وثائق تأمين'},partnership:{type:'mixed',baseFee:25000,rate:0.005,label:'شركة أشخاص'},jointStock:{type:'mixed',rate:0.005,publicRate:0.0025,label:'شركة مساهمة'},llc:{type:'mixed',baseFee:25000,rate:0.005,label:'محدودة المسؤولية'},documentNoAmount:{type:'fixed',amount:5000,label:'وثيقة بلا مبلغ'}};
-function populateStamp(){const s=document.getElementById('stampCategory');s.innerHTML='';for(const k in STAMP_CATEGORIES){const o=document.createElement('option');o.value=k;o.textContent=STAMP_CATEGORIES[k].label;s.appendChild(o);}}populateStamp();
-document.getElementById('stampCalculate').addEventListener('click',()=>{const cat=STAMP_CATEGORIES[document.getElementById('stampCategory').value];const v=+document.getElementById('stampValue').value||0;const cap=+document.getElementById('stampCapital').value||0;const po=document.getElementById('stampPublicOffer').checked;const copies=+document.getElementById('stampCopies').value||1;let base=0;if(cat){if(cat.type==='percentage') base=v*cat.rate;else if(cat.type==='fixed') base=cat.amount;else if(cat.type==='mixed'){const r=(po&&cat.publicRate)?cat.publicRate:cat.rate;base=(cat.baseFee||0)+cap*r;}}const duty=base,nat=duty*0.10,loc=duty*0.05,per=duty+nat+loc,total=per*copies;let out=`الرسوم الأساسية: ${duty.toFixed(2)} ل.س\\nالمساهمة الوطنية 10%: ${nat.toFixed(2)} ل.س\\nرسم الإدارة المحلية 5%: ${loc.toFixed(2)} ل.س\\nالإجمالي للنسخة الواحدة: ${per.toFixed(2)} ل.س`;if(copies>1) out+=`\\nالإجمالي لجميع النسخ: ${total.toFixed(2)} ل.س`;document.getElementById('stampResult').textContent=out;document.getElementById('stampResult').classList.remove('hidden');});
-
-// ========== البيوع ==========
-const SALE_RATES={residential:0.01,commercial:0.03,landInside:0.02,landOutside:0.01,roof:0.01};
-document.getElementById('propCalculate').addEventListener('click',()=>{const v=+document.getElementById('propValue').value||0;const t=document.getElementById('propType').value;const gift=document.getElementById('propGiftRelatives').checked;let base=v*(SALE_RATES[t]||0.01);if(gift) base*=0.15;const loc=base*0.10,rec=base*0.10,total=base+loc+rec;document.getElementById('propResult').textContent=`الضريبة الأساسية: ${base.toFixed(2)} ل.س\\nإدارة محلية: ${loc.toFixed(2)} ل.س\\nإعادة إعمار: ${rec.toFixed(2)} ل.س\\nالإجمالي: ${total.toFixed(2)} ل.س`;document.getElementById('propResult').classList.remove('hidden');});
-
-// ========== الإيجارات ==========
-document.getElementById('rentCalculate').addEventListener('click',()=>{const rent=+document.getElementById('rentValue').value||0;const val=+document.getElementById('rentPropValue').value||0;const use=document.getElementById('rentUseSimple').value;const furn=document.getElementById('rentFurnished').checked;const rate=use==='residential'?0.05:0.10;const minF=use==='residential'?0.0003:0.0006;const valueForMin=(use==='residential'&&furn)?val*1.25:val;const tax=rent*rate;const min=valueForMin*minF;const due=Math.max(tax,min);document.getElementById('rentResult').textContent=`من البدل: ${tax.toFixed(2)} ل.س\\nالحد الأدنى: ${min.toFixed(2)} ل.س\\nالمستحق: ${due.toFixed(2)} ل.س`;document.getElementById('rentResult').classList.remove('hidden');});
-
-// ========== الأرباح ==========
-const BRACKETS2024=[{l:10000000,r:0.10},{l:30000000,r:0.14},{l:100000000,r:0.18},{l:500000000,r:0.22},{l:Infinity,r:0.25}];
-function calcInd2024(p){let t=Math.max(0,p-3000000),prev=0,sum=0;for(const b of BRACKETS2024){let c=Math.min(t,b.l-prev);if(c<=0) break;sum+=c*b.r;t-=c;prev=b.l;}return sum;}
-function calcCorp(p,type){const map={jscPublic:0.15,companyOther:0.20,bankInsurance:0.25,oilGas:0.35};return p*(map[type]||0.20);}
-document.getElementById('profitCalculate').addEventListener('click',()=>{const p=+document.getElementById('profitValue').value||0;const tp=document.getElementById('profitTaxpayerType').value;let base=tp==='individual'?calcInd2024(p):calcCorp(p,document.getElementById('profitCompanyType').value);const loc=base*0.10,rec=base*0.10,total=base+loc+rec;document.getElementById('profitResult').textContent=`الأساسية: ${base.toFixed(2)} ل.س\\nإدارة محلية: ${loc.toFixed(2)} ل.س\\nإعمار: ${rec.toFixed(2)} ل.س\\nالإجمالي: ${total.toFixed(2)} ل.س`;document.getElementById('profitResult').classList.remove('hidden');});
-
-// ========== المقطوع ==========
-document.getElementById('lumpCalculate').addEventListener('click',()=>{const t=+document.getElementById('lumpTurnover').value||0;const m=+document.getElementById('lumpMargin').value||0;const v=+document.getElementById('lumpVehicles').value||0;const profit=Math.max(0,(t*(m/100))-(v*2000000));const base=calcInd2024(profit);const loc=base*0.10,rec=base*0.10,total=base+loc+rec;document.getElementById('lumpResult').textContent=`الربح التقديري: ${profit.toFixed(2)} ل.س\\nالأساسية: ${base.toFixed(2)} ل.س\\nإدارة محلية: ${loc.toFixed(2)} ل.س\\nإعمار: ${rec.toFixed(2)} ل.س\\nالإجمالي: ${total.toFixed(2)} ل.س`;document.getElementById('lumpResult').classList.remove('hidden');});
-
-//ها هو الكود **الكامل النهائي (HTML+CSS+JS)** لحاسبة الضرائب السورية، مجمّع في ملف واحد. انسخه بالكامل وضعه مكان الملف `tax-calculator-ui.html` في GitHub، ثم اعمل Commit، وسيظهر مباشرة على GitHub Pages:
-
----
-
-```html
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8">
-  <title>حاسبة الضرائب السورية</title>
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; background:#fff; color:#1a5450; padding:20px; }
-    h1 { margin-top:0; margin-bottom:20px; }
-    label { display:block; margin-top:10px; font-weight:600; }
-    input, select, button { width:100%; padding:8px; margin-top:4px; border:1px solid #ddd; border-radius:4px; font-size:14px; }
-    button { background:#1a5450; color:#fff; cursor:pointer; }
-    button:hover { background:#12423e; }
-    .section { margin-top:20px; padding:15px; border:1px solid #eee; border-radius:6px; background:#f9f9f9; }
-    .hidden { display:none; }
-    .result { margin-top:15px; padding:10px; background:#eff5f4; border:1px solid #d5e5e1; border-radius:4px; white-space:pre-wrap; }
-    table { border-collapse: collapse; margin-top:20px; width:100%; }
-    th, td { border:1px solid #ccc; padding:8px; text-align:center; }
-    th { background:#1a5450; color:#fff; }
-    .highlight-min { background:#d4edda; color:#155724; font-weight:bold; }
-  </style>
-</head>
-<body>
-  <h1>حاسبة الضرائب السورية</h1>
-  <label for="taxType">اختر نوع الضريبة:</label>
-  <select id="taxType">
-    <option value="" disabled selected>— اختر —</option>
-    <option value="property">بيع عقار (قانون 15/2021)</option>
-    <option value="rent">ضريبة الإيجار العقارية</option>
-    <option value="profit">ضريبة الأرباح الحقيقية</option>
-    <option value="lump">الدخل المقطوع</option>
-    <option value="salary">ضريبة الرواتب والأجور</option>
-    <option value="stamp">رسوم الطابع</option>
-    <option value="profitCompare">مقارنة القوانين (24/51/30)</option>
-  </select>
-
-  <!-- ====== الأقسام ====== -->
-  <div id="propertySection" class="section hidden">
-    <h2>بيع عقار (القانون 15 لسنة 2021)</h2>
-    <label>قيمة العقار (ل.س): <input type="number" id="propValue"></label>
-    <label>نوع العقار:
-      <select id="propType">
-        <option value="residential">سكني</option>
-        <option value="commercial">غير سكني (تجاري/صناعي)</option>
-        <option value="landInside">أرض داخل المخطط</option>
-        <option value="landOutside">أرض خارج المخطط</option>
-        <option value="roof">سطح سكني</option>
-      </select>
-    </label>
-    <label><input type="checkbox" id="propGiftRelatives"> هبة للأصول/الفروع/الزوج</label>
-    <button id="propCalculate">احسب الضريبة</button>
-    <div id="propResult" class="result hidden"></div>
-  </div>
-
-  <div id="rentSection" class="section hidden">
-    <h2>ضريبة الإيجار العقارية</h2>
-    <label>إجمالي بدل الإيجار (ل.س): <input type="number" id="rentValue"></label>
-    <label>القيمة الرائجة (ل.س): <input type="number" id="rentPropValue"></label>
-    <label><input type="checkbox" id="rentFurnished"> مفروش</label>
-    <select id="rentUseSimple">
-      <option value="residential">سكني</option>
-      <option value="commercial">تجاري/غير سكني</option>
-    </select>
-    <button id="rentCalculate">احسب الضريبة</button>
-    <div id="rentResult" class="result hidden"></div>
-  </div>
-
-  <div id="profitSection" class="section hidden">
-    <h2>ضريبة الأرباح الحقيقية</h2>
-    <label>صافي الربح السنوي (ل.س): <input type="number" id="profitValue"></label>
-    <select id="profitTaxpayerType">
-      <option value="individual">فرد/شركات أشخاص</option>
-      <option value="corporate">شركة أموال</option>
-    </select>
-    <select id="profitCompanyType">
-      <option value="jscPublic">شركة مساهمة عامة (>40% اكتتاب)</option>
-      <option value="companyOther">باقي الشركات</option>
-      <option value="bankInsurance">مصارف/تأمين</option>
-      <option value="oilGas">نفط وغاز</option>
-    </select>
-    <button id="profitCalculate">احسب الضريبة</button>
-    <div id="profitResult" class="result hidden"></div>
-  </div>
-
-  <div id="lumpSection" class="section hidden">
-    <h2>الدخل المقطوع (تقديري)</h2>
-    <label>رقم العمل السنوي (ل.س): <input type="number" id="lumpTurnover"></label>
-    <label>هامش ربح تقديري %: <input type="number" id="lumpMargin" value="15"></label>
-    <label>عدد السيارات (إن وجِد): <input type="number" id="lumpVehicles" value="0"></label>
-    <button id="lumpCalculate">احسب الضريبة</button>
-    <div id="lumpResult" class="result hidden"></div>
-  </div>
-
-  <div id="salarySection" class="section hidden">
-    <h2>ضريبة الرواتب والأجور</h2>
-    <label>الراتب الشهري الإجمالي (ل.س): <input type="number" id="salaryValue"></label>
-    <label>تاريخ الاستحقاق:
-      <select id="salaryDate">
-        <option value="2023-09">من 1/9/2023 حتى 29/2/2024</option>
-        <option value="2024-03">من 1/3/2024 وما بعد</option>
-      </select>
-    </label>
-    <label><input type="checkbox" id="salaryLumpOption"> الضريبة المقطوعة (5%)</label>
-    <button id="salaryCalculate">احسب الضريبة</button>
-    <div id="salaryResult" class="result hidden"></div>
-  </div>
-
-  <div id="stampSection" class="section hidden">
-    <h2>رسوم الطابع</h2>
-    <label>الفئة:</label>
-    <select id="stampCategory"></select>
-    <label>قيمة الأساس (ل.س):</label>
-    <input type="number" id="stampValue">
-    <div id="stampCapitalContainer" class="hidden">
-      <label>رأس المال (ل.س):</label>
-      <input type="number" id="stampCapital">
-    </div>
-    <div id="stampPublicOfferContainer" class="hidden">
-      <label><input type="checkbox" id="stampPublicOffer"> طرح أسهم للاكتتاب العام</label>
-    </div>
-    <label>عدد النسخ:</label>
-    <input type="number" id="stampCopies" value="2">
-    <button id="stampCalculate">احسب الرسوم</button>
-    <div id="stampResult" class="result hidden"></div>
-  </div>
-
-  <div id="profitCompareSection" class="section hidden">
-    <h2>مقارنة ضريبة الأرباح (قانون 24 / مرسوم 51 / مرسوم 30)</h2>
-    <label>الربح السنوي (ل.س): <input type="number" id="compareProfit"></label>
-    <button id="compareCalculate">احسب المقارنة</button>
-    <table id="compareTable" class="hidden">
-      <thead>
-        <tr><th>النظام</th><th>الضريبة (ل.س)</th><th>النسبة من الربح</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>قانون 24</td><td id="law24Cell"></td><td id="law24Rate"></td></tr>
-        <tr><td>مرسوم 51</td><td id="dec51Cell"></td><td id="dec51Rate"></td></tr>
-        <tr><td>مرسوم 30 - مساهمة عامة</td><td id="dec30jscCell"></td><td id="dec30jscRate"></td></tr>
-        <tr><td>مرسوم 30 - باقي الشركات</td><td id="dec30otherCell"></td><td id="dec30otherRate"></td></tr>
-        <tr><td>مرسوم 30 - مصارف/تأمين</td><td id="dec30bankCell"></td><td id="dec30bankRate"></td></tr>
-        <tr><td>مرسوم 30 - نفط وغاز</td><td id="dec30oilCell"></td><td id="dec30oilRate"></td></tr>
-      </tbody>
-    </table>
-  </div>
-
-<script>
-// منطق إظهار الأقسام
-document.getElementById('taxType').addEventListener('change', e=>{
-  document.querySelectorAll('.section').forEach(sec=>sec.classList.add('hidden'));
-  document.getElementById(e.target.value+'Section')?.classList.remove('hidden');
-});
-
-// بقية دوال الحساب (رسوم الطابع، البيوع، الإيجارات، الأرباح، الرواتب، المقارنة) هنا كما وضحنا سابقاً
+// ضع هنا شيفرة JavaScript الكاملة التي أعطيتك إياها في الرسالة السابقة
 </script>
 </body>
 </html>
