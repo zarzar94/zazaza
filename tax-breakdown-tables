@@ -1,177 +1,10 @@
-# Push the branch to GitHub
-git push origin add-tax-breakdown-tables<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8">
-  <title>حاسبة الضرائب السورية</title>
-  <style>
-    body { font-family: system-ui, Arial, sans-serif; padding: 20px; }
-    .section { margin-top: 20px; padding: 15px; border: 1px solid #eee; border-radius: 6px; background: #f9f9f9; }
-    .result { margin-top: 15px; padding: 10px; background: #eff5f4; border: 1px solid #d5e5e1; border-radius: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-    th { background: #e8f0ef; }
-  </style>
-</head>
-<body>
-  <h1>حاسبة الضرائب السورية</h1>
-  <label for="taxType">اختر نوع الضريبة:</label>
-  <select id="taxType">
-    <option value="" disabled selected>— اختر —</option>
-    <option value="profit">ضريبة الأرباح الحقيقية</option>
-    <option value="lump">الدخل المقطوع</option>
-    <option value="salary">ضريبة الرواتب والأجور</option>
-  </select>
+تمام ✅
+سأعيد كتابة **شيفرة JavaScript النهائية** بشكل نظيف ومتكامل لتضعها داخل `<script>` أسفل ملفك `tax-calculator-ui.html`. هذه النسخة تحتوي كل القوانين والوظائف:
 
-  <div id="profitSection" class="section hidden">
-    <h2>ضريبة الأرباح الحقيقية</h2>
-    <label>صافي الربح السنوي (س.ل):
-      <input type="number" id="profitValue" min="0" step="0.01" value="0">
-    </label>
-    <button id="profitCalculate">احسب الضريبة</button>
-    <div id="profitResult" class="result hidden"></div>
-  </div>
+---
 
-  <div id="lumpSection" class="section hidden">
-    <h2>الدفعة المقطوعة (تقدير الأرباح)</h2>
-    <label>إجمالي رقم الأعمال السنوي (س.ل):
-      <input type="number" id="lumpTurnover" min="0" step="0.01" value="0">
-    </label>
-    <label>نسبة الربح المقدّرة (%):
-      <input type="number" id="lumpRatio" min="0" step="0.001" value="0.07">
-    </label>
-    <button id="lumpCalculate">احسب الضريبة</button>
-    <div id="lumpResult" class="result hidden"></div>
-  </div>
-
-  <div id="salarySection" class="section hidden">
-    <h2>ضريبة الرواتب والأجور</h2>
-    <label>الراتب الشهري الإجمالي (س.ل):
-      <input type="number" id="salaryValue" min="0" step="0.01" value="0">
-    </label>
-    <label>السنة:
-      <select id="salaryYear">
-        <option value="2024">2024</option>
-        <option value="2025">2025</option>
-      </select>
-    </label>
-    <button id="salaryCalculate">احسب الضريبة</button>
-    <div id="salaryResult" class="result hidden"></div>
-  </div>
-
-  <script>
-    const profitExemption = 3000000;
-    const profitBrackets = [
-      { limit: 10000000, rate: 0.10 },
-      { limit: 30000000, rate: 0.14 },
-      { limit: 100000000, rate: 0.18 },
-      { limit: 250000000, rate: 0.22 },
-      { limit: 500000000, rate: 0.24 },
-      { limit: Infinity, rate: 0.25 }
-    ];
-
-    function calculateProfitTax(annualProfit, brackets = profitBrackets, exempt = profitExemption) {
-      let taxable = annualProfit - exempt;
-      if (taxable <= 0) return { breakdown: [], totalTax: 0 };
-      let remaining = taxable, previousLimit = 0, breakdown = [], totalTax = 0;
-      for (let i = 0; i < brackets.length; i++) {
-        const { limit, rate } = brackets[i];
-        const maxThisBracket = limit - previousLimit;
-        const taxableThisBracket = Math.min(remaining, maxThisBracket);
-        const taxThisBracket = taxableThisBracket * rate;
-        if (taxableThisBracket > 0) {
-          breakdown.push({ bracket: i+1, taxable: taxableThisBracket, rate, tax: taxThisBracket });
-        }
-        totalTax += taxThisBracket;
-        remaining -= taxableThisBracket;
-        previousLimit = limit;
-        if (remaining <= 0) break;
-      }
-      return { breakdown, totalTax };
-    }
-
-    function renderTable(breakdown, totalTax) {
-      let html = `<table><tr><th>الشريحة</th><th>الجزء الخاضع</th><th>النسبة</th><th>الضريبة</th></tr>`;
-      breakdown.forEach(row => {
-        html += `<tr><td>${row.bracket}</td><td>${row.taxable.toFixed(2)}</td><td>${(row.rate*100).toFixed(2)}٪</td><td>${row.tax.toFixed(2)}</td></tr>`;
-      });
-      html += `</table><p><b>الإجمالي: ${totalTax.toFixed(2)}</b></p>`;
-      return html;
-    }
-
-    document.getElementById('taxType').addEventListener('change', e => {
-      document.querySelectorAll('.section').forEach(sec => sec.classList.add('hidden'));
-      if (e.target.value) document.getElementById(e.target.value+'Section').classList.remove('hidden');
-    });
-
-    document.getElementById('profitCalculate').addEventListener('click', () => {
-      const profit = parseFloat(document.getElementById('profitValue').value) || 0;
-      const { breakdown, totalTax } = calculateProfitTax(profit);
-      let html = breakdown.length === 0 ? '<p>لا توجد ضريبة مستحقة (الربح دون حد الإعفاء).</p>' : renderTable(breakdown, totalTax);
-      const resultEl = document.getElementById('profitResult');
-      resultEl.innerHTML = html;
-      resultEl.classList.remove('hidden');
-    });
-
-    document.getElementById('lumpCalculate').addEventListener('click', () => {
-      const turnover = parseFloat(document.getElementById('lumpTurnover').value) || 0;
-      const ratio = parseFloat(document.getElementById('lumpRatio').value) || 0;
-      const estimatedProfit = turnover * ratio;
-      const { breakdown, totalTax } = calculateProfitTax(estimatedProfit);
-      let html = `<p>الربح المقدّر: ${estimatedProfit.toFixed(2)}</p>`;
-      html += breakdown.length === 0 ? '<p>لا توجد ضريبة مستحقة (الربح المقدّر دون حد الإعفاء).</p>' : renderTable(breakdown, totalTax);
-      const resultEl = document.getElementById('lumpResult');
-      resultEl.innerHTML = html;
-      resultEl.classList.remove('hidden');
-    });
-
-    const salaryBrackets2024 = [
-      { limit: 250000, rate: 0.05 },
-      { limit: 450000, rate: 0.07 },
-      { limit: 650000, rate: 0.09 },
-      { limit: 850000, rate: 0.11 },
-      { limit: 1100000, rate: 0.13 },
-      { limit: Infinity, rate: 0.15 }
-    ];
-    const salaryBrackets2025 = salaryBrackets2024;
-
-    function calculateSalaryTax(monthlyIncome, brackets, exempt=0) {
-      let taxable = monthlyIncome - exempt;
-      if (taxable <= 0) return { breakdown: [], totalTax: 0 };
-      let remaining = taxable, previousLimit=0, breakdown=[], totalTax=0;
-      for (let i=0;i<brackets.length;i++) {
-        const {limit,rate} = brackets[i];
-        const maxThisBracket = limit-previousLimit;
-        const taxableThisBracket = Math.min(remaining,maxThisBracket);
-        const taxThisBracket = taxableThisBracket*rate;
-        if (taxableThisBracket > 0) breakdown.push({bracket:i+1,taxable:taxableThisBracket,rate,tax:taxThisBracket});
-        totalTax += taxThisBracket; remaining-=taxableThisBracket; previousLimit=limit; if(remaining<=0) break;
-      }
-      return {breakdown,totalTax};
-    }
-
-    document.getElementById('salaryCalculate').addEventListener('click', () => {
-      const income = parseFloat(document.getElementById('salaryValue').value) || 0;
-      const year = document.getElementById('salaryYear').value;
-      const brackets = year==='2024'?salaryBrackets2024:salaryBrackets2025;
-      const {breakdown,totalTax} = calculateSalaryTax(income,brackets);
-      let html = breakdown.length === 0 ? '<p>لا توجد ضريبة مستحقة (الدخل دون حد الإعفاء).</p>' : renderTable(breakdown,totalTax);
-      const resultEl=document.getElementById('salaryResult');
-      resultEl.innerHTML=html;
-      resultEl.classList.remove('hidden');
-    });
-</script>
-</body>
-</html>
-</script>
-# Create a new branch
-git checkout -b add-tax-breakdown-tables
-
-# Stage the updated file
-git add tax-calculator-ui.html
-
-# Commit with a clear message
-git commit -m "feat: show tax breakdown in tables for profit, lump sum, and salary taxes" <script>
+````html
+<script>
 // منطق إظهار الأقسام
 document.getElementById('taxType').addEventListener('change', e=>{
   document.querySelectorAll('.section').forEach(sec=>sec.classList.add('hidden'));
@@ -203,7 +36,7 @@ document.getElementById('stampCalculate').addEventListener('click',()=>{
   const cat=STAMP_CATEGORIES[document.getElementById('stampCategory').value];
   const v=+document.getElementById('stampValue').value||0;
   const cap=+document.getElementById('stampCapital').value||0;
-  const po=document.getElementById('stampPublicOffer').checked;
+  const po=document.getElementById('stampPublicOffer')?.checked;
   const copies=+document.getElementById('stampCopies').value||1;
   let base=0;
   if(cat){
@@ -246,7 +79,7 @@ document.getElementById('rentCalculate').addEventListener('click',()=>{
   const tax=rent*rate;
   const min=valueForMin*minF;
   const due=Math.max(tax,min);
-  document.getElementById('rentResult').textContent=`من البدل: ${tax.toFixed(2)} ل.س\nالحد الأدنى: ${min.toFixed(2)} ل.س\nالمستحق: ${due.toFixed(2)} ل.س`;
+  document.getElementById('rentResult').textContent=`من البدل: ${tax.toFixed(2)} ل.س\nالحد الأدنى: ${min.toFixed(2)} ل.س\nالمستحق: ${due.toFixed(2)} ل.س\nملاحظة: يجب التصريح خلال 30 يوماً، والغرامة 10% عند التأخير.`;
   document.getElementById('rentResult').classList.remove('hidden');
 });
 
@@ -297,21 +130,16 @@ document.getElementById('salaryCalculate').addEventListener('click',()=>{
 });
 
 // ===== مقارنة القوانين 24/51/30 =====
-function calcLaw24(p){const brackets=BRACKETS2024;let taxable=p-3000000,prev=0,total=0;for(const b of brackets){let cap=Math.min(taxable,b.l-prev);if(cap<=0) break;total+=cap*b.r;taxable-=cap;prev=b.l;}return total;}
+function calcLaw24(p){let taxable=p-3000000,prev=0,total=0;for(const b of BRACKETS2024){let c=Math.min(taxable,b.l-prev);if(c<=0) break;total+=c*b.r;taxable-=c;prev=b.l;}return total;}
 function calcDecree51(p){return p*0.28;}
 function calcDecree30(p,type){const map={jscPublic:0.15,companyOther:0.20,bankInsurance:0.25,oilGas:0.35};return p*(map[type]||0.20);}
 document.getElementById('compareCalculate').addEventListener('click',()=>{
   const p=+document.getElementById('compareProfit').value||0;
   const law24=calcLaw24(p),dec51=calcDecree51(p),jsc=calcDecree30(p,'jscPublic'),other=calcDecree30(p,'companyOther'),bank=calcDecree30(p,'bankInsurance'),oil=calcDecree30(p,'oilGas');
   const values=[law24,dec51,jsc,other,bank,oil],min=Math.min(...values);
-  function setCell(id,value,rateId){const cell=document.getElementById(id),rateCell=document.getElementById(rateId);cell.textContent=value.toLocaleString();const eff=(value/p*100)||0;rateCell.textContent=eff.toFixed(2)+\"%\";cell.classList.remove('highlight-min');rateCell.classList.remove('highlight-min');if(value===min){cell.classList.add('highlight-min');rateCell.classList.add('highlight-min');}}
-  setCell('law24Cell',law24,'law24Rate');
-  setCell('dec51Cell',dec51,'dec51Rate');
-  setCell('dec30jscCell',jsc,'dec30jscRate');
-  setCell('dec30otherCell',other,'dec30otherRate');
-  setCell('dec30bankCell',bank,'dec30bankRate');
-  setCell('dec30oilCell',oil,'dec30oilRate');
-  document.getElementById('compareTable').classList.remove('hidden');
-});
-</script>
+  function setCell(id,value,rateId){const cell=document.getElementById(id),rateCell=document.getElementById(rateId);cell.textContent=value.toLocaleString();const eff=(value/p*100)||0;rateCell.textContent=eff.toFixed(2)+\"%\";cell.classList.remove('highlight-min');rateCell.classList.remove('highlight-min');if(value===min){cell.classList.add('highlight-min');rateCell.classList.add('highlight-min');}}\n  setCell('law24Cell',law24,'law24Rate');\n  setCell('dec51Cell',dec51,'dec51Rate');\n  setCell('dec30jscCell',jsc,'dec30jscRate');\n  setCell('dec30otherCell',other,'dec30otherRate');\n  setCell('dec30bankCell',bank,'dec30bankRate');\n  setCell('dec30oilCell',oil,'dec30oilRate');\n  document.getElementById('compareTable').classList.remove('hidden');\n});\n</script>\n```\n\n---\n\n👆 هذا هو **الـ JavaScript النهائي**.  
+ضعه داخل `<script>` في أسفل ملفك بدل السطر التعليقي الفارغ، ثم اعمل **Commit** على GitHub.  
+بعدها افتح الرابط الحي وستجد الحاسبة تعمل بكامل الأقسام.  
 
+هل تريدني أن أدمجه لك مباشرة مع نسخة الـ HTML الكاملة وأرسل لك ملف واحد متكامل (جاهز للنسخ بدون تقسيم)؟
+````
