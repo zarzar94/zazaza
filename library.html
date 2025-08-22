@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<!--
+  Interactive and immersive library page for viewing legal documents.
+  This page exposes a button that toggles the visibility of a library section.
+  When shown, a dark room scene appears with a light shining down on a picture frame.
+  Below the frame is a list of all PDF laws in this repository.  Each entry
+  links directly to its corresponding PDF file and opens in a new tab.
+  The layout is responsive and centred on the page.  Feel free to adjust
+  colours and spacing to suit your overall site theme.
+-->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مكتبة التشريعات</title>
+  <style>
+    /* Reset default margins and padding */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+body {
+      font-family: sans-serif;
+      background-color: #000;
+      /* Use pure white text across the page for maximum contrast */
+      color: #fff;
+      /* Fill the viewport so the video can sit behind our content */
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    #toggleBtn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      border: none;
+      background-color: #333;
+      /* Use white for the button text to match the overall palette */
+      color: #fff;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background-color 0.3s ease;
+    }
+    #toggleBtn:hover {
+      background-color: #444;
+    }
+    /* Container that holds the entire library scene */
+    #libraryContainer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      display: none;
+      /* darken entire screen slightly for contrast */
+      background-color: rgba(0, 0, 0, 0.8);
+      /* Centre child elements */
+      justify-content: center;
+      align-items: center;
+    }
+    /* Video background covering the entire viewport */
+    #bgVideo {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center center;
+      z-index: -1;
+      filter: brightness(0.75);
+    }
+    /* Scroll container overlayed inside the frame.  Uses a decorative scroll background image */
+    #scrollContainer {
+      position: absolute;
+      /* Approximate positioning relative to the lamp and frame in the video */
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      height: 60%;
+      /* Use the supplied scroll image as background */
+      background: url("f059e8d8-a01e-4eff-8a50-57dbad5aad92.png") no-repeat center center;
+      background-size: 100% 100%;
+      /* Remove border and shadow since the image has its own edges */
+      border: none;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6);
+      /* Provide space for the decorative edges of the scroll image */
+      padding: 80px 40px 80px 40px;
+      /* Reduce default font size slightly for better fit */
+      font-size: 0.95rem;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #scrollContainer h2 {
+      /* This style is kept for backward compatibility, but the header has been moved outside */
+      display: none;
+    }
+    #scrollContainer ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 1em 0;
+    }
+    #scrollContainer li {
+      /* Ensure each list item appears on its own line */
+      display: block;
+      margin: 4px 0;
+      color: #fff;
+    }
+    #scrollContainer a {
+      color: #fff;
+      text-decoration: none;
+      transition: color 0.2s ease;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+    }
+    #scrollContainer a:hover {
+      color: #ccc;
+      text-decoration: underline;
+    }
+
+    /* Paragraphs inside the scroll for each document entry */
+    #scrollContainer p {
+      margin: 4px 0;
+      color: #fff;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+      white-space: normal;
+      line-height: 1.4;
+    }
+
+    /* Each law entry is wrapped in a div for better layout control */
+    #scrollContainer .law-entry {
+      margin: 6px 0;
+      color: #fff;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+      white-space: normal;
+      line-height: 1.6;
+    }
+
+    /* Style the interactive details.  Each law entry expands to show
+       explanatory notes, article summaries and a link to the PDF. */
+    #scrollContainer details {
+      margin-bottom: 1em;
+      padding-bottom: 0.5em;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    #scrollContainer details summary {
+      cursor: pointer;
+      font-weight: bold;
+      margin: 0.2em 0;
+      list-style: none;
+      color: #fff;
+      text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Hide the default disclosure triangle for details elements */
+    #scrollContainer details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    /* Links inside details appear subtle and underlined */
+    #scrollContainer details a {
+      color: #cfd8dc;
+      text-decoration: underline;
+      margin: 0.3em 0;
+      display: inline-block;
+    }
+
+    /* Paragraphs inside details for descriptions and bullet points */
+    #scrollContainer details p {
+      margin: 0.3em 0;
+      line-height: 1.4;
+    }
+
+    /* Style for section headings inside the scroll content */
+    #scrollContainer h3 {
+      margin-top: 1.4em;
+      margin-bottom: 0.8em;
+      font-size: 1.1rem;
+      color: #fff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      padding-bottom: 0.3em;
+    }
+
+    /* Scrollable content inside the scroll container */
+    #scrollContent {
+      flex: 1;
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    /* Custom scrollbar for the scroll content to blend with the scroll design */
+    #scrollContent::-webkit-scrollbar {
+      width: 6px;
+    }
+    #scrollContent::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #scrollContent::-webkit-scrollbar-thumb {
+      background: #b4946a;
+      border-radius: 3px;
+    }
+
+    /* Title displayed above the scroll container */
+    #scrollTitle {
+      position: absolute;
+      top: 15%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.6rem;
+      color: #fff;
+      margin-bottom: 10px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <button id="toggleBtn">المكتبة</button>
+  <div id="libraryContainer">
+    <!-- The background video covers the entire screen -->
+    <video
+      id="bgVideo"
+      src="20250812_0215_Spotlight on Simplicity_storyboard_01k2dk8gs5efets7zwygegy952 (1).mp4"
+      autoplay
+      loop
+      muted
+      playsinline
+    ></video>
+    <!-- Scroll container sits within the frame and holds the categorized list of laws. -->
+    <h2 id="scrollTitle">القوانين واللوائح المتاحة</h2>
+    <div id="scrollContainer">
+      <!-- Content area scrolls independently to preserve the scroll image edges -->
+      <div id="scrollContent"></div>
+    </div>
+  </div>
+  <script>
+    // Toggle visibility of the library when the button is clicked
+    const btn = document.getElementById('toggleBtn');
+    const container = document.getElementById('libraryContainer');
+    btn.addEventListener('click', () => {
+      container.style.display = container.style.display === 'flex' ? 'none' : 'flex';
+    });
+
+    // List of PDF files stored in the repository.  Each file name corresponds to
+    // a document containing the full text of the law or regulation.  When
+    // adding new documents, simply append the file name to this array.
+    // Categorised list of laws.  Each property represents a section of the
+    // Ministry of Finance's legal framework, and contains the PDF filenames
+    // pertaining to that section.  Feel free to adjust the groupings or add
+    // more sections as additional documents are added to the repository.
+    // Define a comprehensive catalogue of laws.  Each entry associates
+    // a PDF file in this repository with its corresponding category and a
+    // concise description.  These descriptions appear as tooltips when
+    // hovering over the document links.  This structure makes it easy to
+    // reorganise or extend the library by adding new entries without
+    // modifying the rendering logic below.
+    const lawList = [
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "المرسوم 488 لعام 2007 النظام المحاسبي والمالي للقطاع الإداري.pdf",
+        description:
+          "نظام محاسبي ومالي للقطاع الإداري يتضمن المبادئ العامة، إعداد الموازنات، أساليب الجرد والحسابات الختامية."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "المرسوم 489 لعام 2007 النظام المالي للمؤسسات الاقتصادية.pdf",
+        description:
+          "ينظم الموارد المالية للمؤسسات والشركات العامة، إعداد الموازنات التخطيطية، ضبط النفقات، الرقابة والحسابات الختامية."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "المرسوم 490 لعام 2007 النظام المحاسبي للمؤسسات الاقتصادية.pdf",
+        description:
+          "يحدد الأصول المحاسبية للمؤسسات الاقتصادية، مسك الدفاتر، نماذج القيود، الجرد السنوي، إعداد الميزانيات والحسابات الختامية."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "المرسوم رقم 489 لعام 2007 النظام المالي.pdf",
+        description:
+          "إصدار موازٍ للنظام المالي للمؤسسات الاقتصادية يُحدد أطر الإدارة المالية والرقابة."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "القانون 2 لعام 2005 قانون المؤسسات العامة.pdf",
+        description:
+          "ينظم عمل المؤسسات العامة، يحدد أهدافها، تشكيل مجلس الإدارة، صلاحيات المدير العام، مصادر التمويل والرقابة."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "القانون 44 لعام 2022 تعديل القانون 2 لعام 2005 قانون المؤسسات.pdf",
+        description:
+          "يعدّل تشكيل مجلس الإدارة وصلاحيات المدير العام في قانون المؤسسات العامة، مع تعزيز دور الخبراء."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "القانون 51 لعام 2004 نظام العقود.pdf",
+        description:
+          "يحدد طرق التعاقد لدى الجهات العامة (مناقصات، مزايدات، طلب عروض)، تشكيل اللجان، تنفيذ العقود وحقوق والتزامات الطرفين."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "المرسوم 450 لعام 2004 دفتر الشروط العامة الموحد.pdf",
+        description:
+          "يصدر دفتر الشروط العامة لعقود الأشغال والتوريد والخدمات، ويعد جزءاً لا يتجزأ من وثائق العقد في الجهات العامة."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "المرسوم التشريعي رقم 54 لعام 2006 القانون المالي الأساسي.pdf",
+        description:
+          "يحدد قواعد النظام المالي للدولة، إعداد الموازنة العامة، التصنيف، التنفيذ، الرقابة والحساب الختامي."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "القانون 33 لعام 2009 تنظيم مهنة المحاسبة وتدقيق الحسابات.pdf",
+        description:
+          "ينظم مهنة المحاسبة والتدقيق، شروط الترخيص، مهام هيئة المحاسبين القانونيين، واجبات المدقق والعقوبات التأديبية."
+      },
+      {
+        category: "الإدارة المركزية لوزارة المالية",
+        file: "المرسوم التشريعي رقم 29 لعام 2011 قانون الشركات.pdf",
+        description:
+          "يشمل أحكام تأسيس وإدارة أنواع الشركات (تضامن، توصية، محدودة، مساهمة)، الاندماج، التحول، الرقابة، العقوبات والتصفية."
+      },
+      {
+        category: "الهيئة العامة للضرائب والرسوم",
+        file: "القانون 24 لعام 2003 قانون الضرائب على الدخل.pdf",
+        description:
+          "يفرض ضريبة على الدخول الصافية للأشخاص الطبيعيين والاعتباريين، يحدد الشرائح والنسب، الإعفاءات والضريبة المقطوعة."
+      },
+      {
+        category: "الهيئة العامة للضرائب والرسوم",
+        file: "القانون 38 لعام 2006 قانون الجمارك.pdf",
+        description:
+          "ينظم الاستيراد والتصدير، تحصيل الرسوم الجمركية، المناطق الحرة، المخالفات والعقوبات المرتبطة بالتهريب الجمركي."
+      },
+      {
+        category: "الهيئة العامة للضرائب والرسوم",
+        file: "المرسوم التشريعي 341 لعام 1956 قانون جباية الأموال العامة.pdf",
+        description:
+          "يحدد إجراءات جباية الضرائب والرسوم والذمم المالية، الإنذار، الحجز والبيع، الاسترداد، والإعفاءات."
+      },
+      {
+        category: "الهيئة العامة للضرائب والرسوم",
+        file: "القانون 15 لعام 2021 البيوع العقارية.pdf",
+        description:
+          "يفرض ضريبة على البيوع العقارية بنسبة 1-3% من القيمة الرائجة، ينشئ لجان تقدير للقيمة، يشمل الإعفاءات ونقل الملكية."
+      },
+      {
+        category: "الهيئة العامة للضرائب والرسوم",
+        file: "القانون 11 لعام 2023 تعديل رسم الانفاق الاستهلاكي.pdf",
+        description:
+          "يعدل نسب رسم الإنفاق الاستهلاكي على البنزين والمازوت والإسمنت والحديد، ويحدد طريقة التحصيل."
+      },
+      {
+        category: "الهيئة العامة للضرائب والرسوم",
+        file: "القانون 1 لعام 2023 تعديل رسم الطابع.pdf",
+        description:
+          "يعدل نسب رسوم الطابع (النسبي، المالي، المقطوع) وفق المرسوم التشريعي 44 لعام 2005."
+      },
+      {
+        category: "الهيئة العامة للضرائب والرسوم",
+        file: "قانون 19 لعام 2014 الخاص ببيع الاموال المحجوزة لصالح المصارف بالمزاد العلني.pdf",
+        description:
+          "يسمح ببيع الأموال المحجوزة لصالح المصارف بالمزاد العلني بإشراف لجنة محددة وتسديد الديون المستحقة."
+      },
+      {
+        category: "الهيئة العامة للضرائب والرسوم",
+        file: "المرسوم التشريعي رقم 33 لعام 2005 غسل الاموال.pdf",
+        description:
+          "يجرّم غسل الأموال ويحدث هيئة مكافحة غسل الأموال، يحدد العقوبات والإجراءات والتحفظ على الأصول المشبوهة."
+      },
+      {
+        category: "الهيئة العامة للضرائب والرسوم",
+        file: "القانون 41 لعام 2007 احدث هيئة الضرائب.pdf",
+        description:
+          "يُحدث الهيئة العامة للضرائب ويحدد أهدافها ومواردها وتشكيل مجلس إدارتها."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "المرسوم التشريعي رقم 30 لعام 2005 إحداث المصرف الزراعي.pdf",
+        description:
+          "ينشئ المصرف الزراعي، يحدد رأس ماله وأهدافه في تمويل النشاط الزراعي والإنتاج الحيواني."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "المرسوم 32 لعام 2005 إحداث مصرف التسليف الشعبي.pdf",
+        description:
+          "ينشئ مصرف التسليف الشعبي، يحدد رأس ماله وأهدافه في تقديم القروض المتوسطة والصغيرة للأفراد والحرفيين."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "مرسوم 35 لعام 2006 إحداث المصرف التجاري السوري.pdf",
+        description:
+          "ينشئ المصرف التجاري السوري، يحدد رأس ماله وأهدافه في ممارسة الأعمال المصرفية التجارية وتمويل التجارة الداخلية والخارجية."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "القانون 8 لعام 2021 ترخيص مصارف التمويل الأصغر.pdf",
+        description:
+          "يقوم بترخيص مصارف التمويل الأصغر، يحدد رأس المال وملكية الأسهم، الأنشطة المسموح بها، الرقابة والعقوبات."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "التعليمات التنفيذية للقانون 8 ترخيص مصارف التمويل الأصغر.pdf",
+        description:
+          "تعليمات تنفيذية توضح إجراءات الترخيص والتسجيل، تشكيل مجلس الإدارة، الرقابة والإشراف، توفيق الأوضاع والأحكام العامة."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "القانون 18  لعام 2024 تعديل القانون 8 ترخيص مصارف التمويل الاصغر.pdf",
+        description:
+          "يزيد رأس المال الأدنى لمصارف التمويل الأصغر، يحدد نسب ملكية السوريين والأجانب، يضيف خدمات جديدة ومعايير حوكمة."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "القانون 3 لعام 2010 تعديل القانون 28 ترخيص المصارف الخاصة.pdf",
+        description:
+          "يعدّل القانون 28 لعام 2001، يرفع رأس مال المصارف الخاصة، يحدد نسب ملكية السوريين، ويخضع المصرف للرقابة."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "التعليمات التنفيذية للقانون 26 لعام 2015.pdf",
+        description:
+          "تعليمات تنفيذية للقانون 26 لعام 2015 تتعلق برسوم إنتاج الإسمنت والبيتون وتنظيم استيفائها."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "المرسوم التشريعي 48 لعام 2013 تعديل قانون النقد.pdf",
+        description:
+          "يعدّل المادة 28 من قانون النقد الأساسي لزيادة عدد أعضاء مجلس النقد والتسليف إلى تسعة."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "قانون النقد الاساسي 23 لعام 2002.pdf",
+        description:
+          "ينظم مجلس النقد والتسليف، إصدار النقد، التغطية النقدية، مهام مصرف سورية المركزي، ورقابة المهنة المصرفية."
+      },
+      {
+        category: "القطاع المصرفي",
+        file: "المرسوم التشريعي رقم 33 لعام 2005 غسل الاموال.pdf",
+        description:
+          "يجرّم غسل الأموال ويُحدث هيئة مكافحة غسل الأموال، يحدد العقوبات والسلطات الرقابية."
+      },
+      {
+        category: "قطاع السوق المالي",
+        file: "قانون 22 لعام 2005 تأسيس هيئة الأوراق المالية.pdf",
+        description:
+          "يحدث هيئة الأوراق والأسواق المالية السورية، يحدد أهدافها وصلاحيات مجلس المفوضين، ويخضع الشركات المدرجة للرقابة."
+      },
+      {
+        category: "قطاع السوق المالي",
+        file: "مرسوم تشريعي 55 لعام 2006 تأسيس سوق دمشق للأوراق المالية.pdf",
+        description:
+          "ينشئ سوق دمشق للأوراق المالية، يحدد أنواع السوق (نظامية وموازية)، مجلس الإدارة، صندوق الضمان والمقاصة، وترخيص الوسطاء."
+      },
+      {
+        category: "قطاع السوق المالي",
+        file: "المرسوم التشريعي رقم 60 لعام 2007 قانون الأوراق المالية الحكومية.pdf",
+        description:
+          "ينظم إصدار وتداول الأوراق المالية الحكومية، تحديد شروط الإصدار، الإعفاءات، وآليات الاكتتاب والسداد."
+      },
+      {
+        category: "قطاع السوق المالي",
+        file: "القانون 11 لعام 2023 الخاص بتشجيع الشركات العائلية على التحويل لشركات مساهمة عامة.pdf",
+        description:
+          "يشجع الشركات العائلية على التحول إلى شركات مساهمة عامة، يحدد شروط التحول والتسهيلات والإعفاءات الضريبية."
+      },
+      {
+        category: "أخرى",
+        file: "القانون 41 لعام 2007 احدث هيئة الضرائب.pdf",
+        description:
+          "يُحدث الهيئة العامة للضرائب والرسوم، يحدد أهدافها، مواردها، تشكيل مجلس الإدارة، وأحكامها الانتقالية."
+      },
+      {
+        category: "أخرى",
+        file: "دليل تشريعات وزارة المالية_١٢٠٧٠٩.pdf",
+        description:
+          "دليل شامل للتشريعات المالية يتضمن فهرساً بالقوانين والمراسيم والقرارات المتعلقة بوزارة المالية وهيئاتها."
+      }
+    ];
+
+    // Group the laws by category at runtime.  This step produces an
+    // object where each key is a category and its value is an array of
+    // law objects belonging to that category.  Categories not present
+    // in lawList will not be rendered.
+    const lawCategories = {};
+    lawList.forEach(law => {
+      if (!lawCategories[law.category]) lawCategories[law.category] = [];
+      lawCategories[law.category].push(law);
+    });
+
+    // Build a lookup for descriptions keyed by file name to simplify
+    // assigning tooltips below.  The map allows constant-time lookup.
+    const lawDescriptions = {};
+    lawList.forEach(law => {
+      lawDescriptions[law.file] = law.description;
+    });
+
+    // Detailed summaries for each law.  Each entry maps a file name to
+    // an array of short descriptions outlining the key materials
+    // (المواد والفصول) أو أحكام القانون.  These appear when the
+    // corresponding law entry is expanded.  Where more detailed
+    // explanations are available in the original conversation, they
+    // have been condensed into succinct bullet points.
+    const lawDetails = {
+      "المرسوم 488 لعام 2007 النظام المحاسبي والمالي للقطاع الإداري.pdf": [
+        "إصدار نظام محاسبي ومالي خاص بالقطاع الإداري، يتضمن مبادئ المحاسبة الحكومية وإعداد وتنفيذ الموازنة والجرد والحسابات الختامية."
+      ],
+      "المرسوم 489 لعام 2007 النظام المالي للمؤسسات الاقتصادية.pdf": [
+        "تنظيم الموارد المالية للمؤسسات الاقتصادية، إعداد الموازنات التخطيطية، ضبط الصرف والإنفاق، والرقابة والحسابات الختامية."
+      ],
+      "المرسوم 490 لعام 2007 النظام المحاسبي للمؤسسات الاقتصادية.pdf": [
+        "تحديد الأصول المحاسبية الموحدة للمؤسسات الاقتصادية، مسك الدفاتر والسجلات، نماذج القيود، الجرد السنوي وإعداد الميزانيات."
+      ],
+      "المرسوم رقم 489 لعام 2007 النظام المالي.pdf": [
+        "إصدار موازٍ للنظام المالي للمؤسسات الاقتصادية يحدد أطر الإدارة المالية والرقابة والإنفاق."
+      ],
+      "القانون 2 لعام 2005 قانون المؤسسات العامة.pdf": [
+        "تنظيم عمل المؤسسات العامة من حيث الأهداف، تشكيل مجلس الإدارة، صلاحيات المدير العام، التمويل والرقابة."
+      ],
+      "القانون 44 لعام 2022 تعديل القانون 2 لعام 2005 قانون المؤسسات.pdf": [
+        "تعديل تشكيل مجلس الإدارة وصلاحيات المدير العام، مع إدخال ممثلين للمالية والتخطيط وزيادة دور الخبراء."
+      ],
+      "القانون 51 لعام 2004 نظام العقود.pdf": [
+        "تحديد طرق التعاقد لدى الجهات العامة (مناقصات، مزايدات، طلب عروض، شراء مباشر)، تشكيل اللجان، تنفيذ العقود وحقوق والتزامات الأطراف."
+      ],
+      "المرسوم 450 لعام 2004 دفتر الشروط العامة الموحد.pdf": [
+        "إصدار دفتر الشروط العامة لعقود الأشغال والتوريد والخدمات، يحدد القواعد العامة والشروط المالية والفنية والجزاءات."
+      ],
+      "المرسوم التشريعي رقم 54 لعام 2006 القانون المالي الأساسي.pdf": [
+        "يحدد القواعد الأساسية للنظام المالي للدولة، إعداد وتنفيذ الموازنة العامة، الرقابة المالية، والحساب الختامي."
+      ],
+      "القانون 33 لعام 2009 تنظيم مهنة المحاسبة وتدقيق الحسابات.pdf": [
+        "تنظيم مهنة المحاسبة والتدقيق، شروط الترخيص، مهام هيئة المحاسبين القانونيين، واجبات المدقق والعقوبات التأديبية."
+      ],
+      "المرسوم التشريعي رقم 29 لعام 2011 قانون الشركات.pdf": [
+        "أحكام تأسيس وإدارة الشركات بكافة أنواعها، الاندماج والتحول، الرقابة والتفتيش، العقوبات والتصفية."
+      ],
+      "القانون 24 لعام 2003 قانون الضرائب على الدخل.pdf": [
+        "تحديد نطاق ضريبة الدخل، الشرائح والنسب، إجراءات التحقق والتحصيل، الإعفاءات والعقوبات."
+      ],
+      "القانون 38 لعام 2006 قانون الجمارك.pdf": [
+        "تنظيم الاستيراد والتصدير، التعرفة الجمركية، المناطق الحرة، المخالفات الجمركية والعقوبات."
+      ],
+      "المرسوم التشريعي 341 لعام 1956 قانون جباية الأموال العامة.pdf": [
+        "تحديد إجراءات جباية الضرائب والرسوم والذمم المالية، الإنذار، الحجز والبيع، الاسترداد، والإعفاءات."
+      ],
+      "القانون 15 لعام 2021 البيوع العقارية.pdf": [
+        "فرض ضريبة على البيوع العقارية بنسبة 1-3% من القيمة الرائجة، تشكيل لجان تقدير للقيمة، إعفاء الهبة بين الأقارب لمرة واحدة."
+      ],
+      "القانون 11 لعام 2023 تعديل رسم الانفاق الاستهلاكي.pdf": [
+        "تعديل رسم الإنفاق الاستهلاكي على البنزين والمازوت والإسمنت والحديد، تحديد أسس الاستيفاء."
+      ],
+      "القانون 1 لعام 2023 تعديل رسم الطابع.pdf": [
+        "تعديل نسب رسم الطابع النسبي والمالي والمقطوع، تعديل جداول الرسوم، وإلغاء النصوص المخالفة."
+      ],
+      "قانون 19 لعام 2014 الخاص ببيع الاموال المحجوزة لصالح المصارف بالمزاد العلني.pdf": [
+        "السماح ببيع الأموال المحجوزة لصالح المصارف بالمزاد العلني بإشراف لجنة مختصة وتسديد الديون المستحقة."
+      ],
+      "المرسوم التشريعي رقم 33 لعام 2005 غسل الاموال.pdf": [
+        "تجريم غسل الأموال، إنشاء هيئة مكافحة غسل الأموال، تحديد العقوبات والإجراءات الرقابية."
+      ],
+      "القانون 41 لعام 2007 احدث هيئة الضرائب.pdf": [
+        "إحداث الهيئة العامة للضرائب، تحديد أهدافها ومواردها وتشكيل مجلس الإدارة."
+      ],
+      "المرسوم التشريعي رقم 30 لعام 2005 إحداث المصرف الزراعي.pdf": [
+        "إنشاء المصرف الزراعي، تحديد رأس المال والموارد، أهدافه في تمويل النشاط الزراعي والإنتاج الحيواني."
+      ],
+      "المرسوم 32 لعام 2005 إحداث مصرف التسليف الشعبي.pdf": [
+        "إنشاء مصرف التسليف الشعبي، تحديد رأس المال والموارد، أهدافه في تقديم القروض المتوسطة والصغيرة للأفراد والحرفيين."
+      ],
+      "مرسوم 35 لعام 2006 إحداث المصرف التجاري السوري.pdf": [
+        "إنشاء المصرف التجاري السوري، تحديد رأس المال، أهدافه في ممارسة الأعمال المصرفية وتمويل التجارة الداخلية والخارجية."
+      ],
+      "القانون 8 لعام 2021 ترخيص مصارف التمويل الأصغر.pdf": [
+        "ترخيص مصارف التمويل الأصغر، تحديد رأس المال وملكية الأسهم، الأنشطة المسموح بها، الرقابة والعقوبات."
+      ],
+      "التعليمات التنفيذية للقانون 8 ترخيص مصارف التمويل الأصغر.pdf": [
+        "إجراءات الترخيص والتسجيل، تشكيل مجلس الإدارة والرقابة، توفيق الأوضاع والأحكام العامة."
+      ],
+      "القانون 18  لعام 2024 تعديل القانون 8 ترخيص مصارف التمويل الاصغر.pdf": [
+        "رفع رأس المال الأدنى لمصارف التمويل الأصغر، تعديل نسب الملكية، إضافة خدمات جديدة ومعايير حوكمة."
+      ],
+      "القانون 3 لعام 2010 تعديل القانون 28 ترخيص المصارف الخاصة.pdf": [
+        "تعديل القانون 28 لعام 2001؛ رفع رأس مال المصارف الخاصة، تحديد نسب ملكية السوريين، إخضاع المصرف للرقابة."
+      ],
+      "التعليمات التنفيذية للقانون 26 لعام 2015.pdf": [
+        "تفصيل إجراءات استيفاء رسوم إنتاج الإسمنت والبيتون وتنظيم تحصيلها وتوزيعها."
+      ],
+      "المرسوم التشريعي 48 لعام 2013 تعديل قانون النقد.pdf": [
+        "تعديل المادة 28 من قانون النقد الأساسي لزيادة عدد أعضاء مجلس النقد والتسليف وتنظيم اجتماعاته."
+      ],
+      "قانون النقد الاساسي 23 لعام 2002.pdf": [
+        "تنظيم مجلس النقد والتسليف، إصدار النقد والتغطية النقدية، مهام مصرف سورية المركزي، وتنظيم مهنة المصارف."
+      ],
+      "المرسوم التشريعي رقم 33 لعام 2005 غسل الاموال.pdf": [
+        "تجريم غسل الأموال وتحديد آليات مكافحة الجريمة وإحداث هيئة مختصة."
+      ],
+      "قانون 22 لعام 2005 تأسيس هيئة الأوراق المالية.pdf": [
+        "إحداث هيئة الأوراق والأسواق المالية السورية، تحديد أهدافها وصلاحيات مجلس المفوضين، وخضوع الشركات المدرجة للرقابة."
+      ],
+      "مرسوم تشريعي 55 لعام 2006 تأسيس سوق دمشق للأوراق المالية.pdf": [
+        "إنشاء سوق دمشق للأوراق المالية، تحديد أنواع السوق، مجلس الإدارة، صندوق الضمان، المقاصة، وترخيص الوسطاء."
+      ],
+      "المرسوم التشريعي رقم 60 لعام 2007 قانون الأوراق المالية الحكومية.pdf": [
+        "تنظيم إصدار وتداول الأوراق المالية الحكومية، تحديد شروط الإصدار، الإعفاءات، وآليات الاكتتاب والسداد."
+      ],
+      "القانون 11 لعام 2023 الخاص بتشجيع الشركات العائلية على التحويل لشركات مساهمة عامة.pdf": [
+        "تشجيع الشركات العائلية على التحول إلى شركات مساهمة عامة، تحديد شروط التحول، التسهيلات والإعفاءات."
+      ],
+      "المرسوم التشريعي 53 لعام 2006 ضريبة ريع العقارات.pdf": [
+        "فرض ضريبة على ريع العقارات المبنية والأراضي المعدة للبناء، تحديد معدلات الضريبة، تشكيل لجان تقدير وإجراءات التحصيل."
+      ],
+      "المرسوم التشريعي 64 لعام 2010 تعديل احداث هيئة الضرائب.pdf": [
+        "تعديل بعض أحكام إحداث الهيئة العامة للضرائب والرسوم، ربطها بوزارة المالية ومنحها صلاحيات إضافية."
+      ],
+      "المرسوم التشريعي رقم 11 لعام 2015 رسم الانفاق الاستهلاكي.pdf": [
+        "فرض رسم إنفاق استهلاكي على السلع والخدمات الكمالية، تحديد المكلفين وأسعار الرسم والإعفاءات والعقوبات."
+      ],
+      "المرسوم التشريعي رقم 44 لعام 2005 رسم الطابع.pdf": [
+        "فرض رسم طابع على العقود والمستندات الرسمية والفواتير والأوراق المالية، تحديد الفئات والإعفاءات والعقوبات."
+      ],
+      "المرسوم التشريعي رقم 51 لعام 2006.pdf": [
+        "تحديد الضرائب والرسوم على الأعمال والأنشطة الاقتصادية، ضريبة رقم العمل، ضريبة المهن العلمية، ضريبة الخدمات، وضريبة الدخل المقطوعة."
+      ],
+      "المرسوم التشريعي 30 لعام 2023 تعديل القانون 24 لعام 2003.pdf": [
+        "تعديل العديد من أحكام قانون الضريبة على الدخل لعام 2003؛ تعديل الإعفاءات، إضافة مخصصات جديدة، رفع معدلات بعض الضرائب، وفرض غرامات على البرامج المحاسبية المخالفة."
+      ],
+      "قانون 22 لعام 2005 تأسيس هيئة الأوراق المالية.pdf": [
+        "تم ذكر تفاصيل هذا القانون في مكان آخر من الوثيقة."
+      ],
+      "المرسوم التشريعي 68 لعام 2004 إحداث هيئة الاشراف على التامين.pdf": [
+        "إحداث هيئة الإشراف على التأمين كهيئة عامة مستقلة، تنظيم القطاع، حماية حقوق المؤمن لهم، وتطوير سوق التأمين."
+      ],
+      "المرسوم التشريعي رقم -43- لعام 2005 الناظم لاعمال قطاع التامين.pdf": [
+        "تنظيم قطاع التأمين في سورية، إجراءات الترخيص للشركات، إدارة الشركات، الاندماج والتصفية، دور هيئة الإشراف، الأحكام المالية والعقوبات."
+      ],
+      "التعليمات التنفيذية للمرسوم التشريعي رقم -43- لعام2005-.pdf": [
+        "تحديد إجراءات تنفيذ قانون التأمين، شروط الترخيص، متطلبات رأس المال، قواعد ممارسة شركات التأمين وإعادة التأمين، نظام الرقابة، معايير الملاءة المالية، وحدود الاستثمار، وإجراءات حل وتسوية المطالبات."
+      ],
+      "القانون 48 لعام 2022 تعديل قانون التأمين 43 لعام 2005.pdf": [
+        "تعديل بعض أحكام قانون التأمين رقم 43 لعام 2005، بما في ذلك متطلبات رأس المال، مهام هيئة الإشراف، وتعديلات تنظيمية أخرى لتعزيز القطاع."
+      ],
+      "دليل تشريعات وزارة المالية_١٢٠٧٠٩.pdf": [
+        "يحتوي على دليل شامل للتشريعات المالية المتعلقة بوزارة المالية والهيئات التابعة لها، يوفر فهرسًا بالقوانين والمراسيم والقرارات لسهولة البحث."
+      ]
+    };
+
+    const scrollContent = document.getElementById('scrollContent');
+
+    // Build the categories dynamically.  For each category, insert a heading
+    // followed by interactive entries.  Each entry uses a <details>
+    // element so the user can expand it to see a short summary and a
+    // link to the original PDF.  This design enables an immersive and
+    // informative library experience on top of the visual scroll design.
+    Object.keys(lawCategories).forEach(section => {
+      // Section heading
+      const heading = document.createElement('h3');
+      heading.textContent = section;
+      scrollContent.appendChild(heading);
+      // Create an entry for each law in this section
+      lawCategories[section].forEach(law => {
+        const detailsEl = document.createElement('details');
+        detailsEl.className = 'law-entry';
+        // Summary contains only the file name without extension
+        const summary = document.createElement('summary');
+        summary.textContent = law.file.replace(/\.pdf$/i, '');
+        detailsEl.appendChild(summary);
+        // Link to download or view the PDF
+        const pdfLink = document.createElement('a');
+        pdfLink.href = encodeURIComponent(law.file);
+        pdfLink.textContent = 'تحميل الملف';
+        pdfLink.target = '_blank';
+        detailsEl.appendChild(pdfLink);
+        // Add a short description if available
+        if (lawDescriptions[law.file]) {
+          const desc = document.createElement('p');
+          desc.textContent = lawDescriptions[law.file];
+          detailsEl.appendChild(desc);
+        }
+        // Add detailed bullet points if available
+        if (lawDetails[law.file]) {
+          lawDetails[law.file].forEach(item => {
+            const bullet = document.createElement('p');
+            // Prefix bullet point with a dot for visual separation
+            bullet.textContent = '\u2022 ' + item;
+            detailsEl.appendChild(bullet);
+          });
+        }
+        scrollContent.appendChild(detailsEl);
+      });
+    });
+  </script>
+</body>
+</html>
