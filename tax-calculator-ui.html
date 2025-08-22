@@ -4,15 +4,21 @@
   <meta charset="utf-8">
   <title>حاسبة الضرائب السورية</title>
   <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; background:#fff; color:#1a5450; padding:20px; }
+    /* Base styles */
+    body { font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; margin:0; padding:0; background:#fff; color:#1a5450; }
+    /* Video background covers the entire viewport */
+    #bgVideo { position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%; width: auto; height: auto; z-index: -1; object-fit: cover; }
+    /* Wrap calculator UI to center it over the video */
+    .calculator-container { position: relative; z-index: 1; display:flex; flex-direction: column; align-items:center; justify-content:center; min-height: 100vh; padding:20px; }
     h1 { margin-top:0; margin-bottom:20px; }
     label { display:block; margin-top:10px; font-weight:600; }
     input, select, button { width:100%; padding:8px; margin-top:4px; border:1px solid #ddd; border-radius:4px; font-size:14px; }
     button { background:#1a5450; color:#fff; cursor:pointer; }
     button:hover { background:#12423e; }
-    .section { margin-top:20px; padding:15px; border:1px solid #eee; border-radius:6px; background:#f9f9f9; }
+    /* Card-like sections with translucent backgrounds to reveal video */
+    .section { margin-top:20px; padding:15px; border-radius:6px; background: rgba(255,255,255,0.85); border:1px solid rgba(255,255,255,0.4); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
     .hidden { display:none; }
-    .result { margin-top:15px; padding:10px; background:#eff5f4; border:1px solid #d5e5e1; border-radius:4px; white-space:pre-wrap; }
+    .result { margin-top:15px; padding:10px; background: rgba(255,255,255,0.85); border:1px solid rgba(255,255,255,0.4); border-radius:4px; white-space:pre-wrap; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     table { border-collapse: collapse; margin-top:20px; width:100%; }
     th, td { border:1px solid #ccc; padding:8px; text-align:center; }
     th { background:#1a5450; color:#fff; }
@@ -20,6 +26,13 @@
   </style>
 </head>
 <body>
+  <!-- Background video: muted and looping -->
+  <video id="bgVideo" autoplay loop muted playsinline>
+    <source src="background.mp4" type="video/mp4">
+    متصفحك لا يدعم تشغيل الفيديو.
+  </video>
+  <!-- Calculator container wrapper to center the content -->
+  <div class="calculator-container">
   <h1>حاسبة الضرائب السورية</h1>
   <label for="taxType">اختر نوع الضريبة:</label>
   <select id="taxType">
@@ -142,6 +155,7 @@
     </table>
   </div>
 
+  </div><!-- end calculator container -->
   <script>
   // منطق إظهار الأقسام
   document.getElementById('taxType').addEventListener('change', e=>{
