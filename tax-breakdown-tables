@@ -160,9 +160,10 @@ git push origin add-tax-breakdown-tables<!DOCTYPE html>
       resultEl.innerHTML=html;
       resultEl.classList.remove('hidden');
     });
-  </script>
+</script>
 </body>
 </html>
+</script>
 # Create a new branch
 git checkout -b add-tax-breakdown-tables
 
@@ -170,4 +171,147 @@ git checkout -b add-tax-breakdown-tables
 git add tax-calculator-ui.html
 
 # Commit with a clear message
-git commit -m "feat: show tax breakdown in tables for profit, lump sum, and salary taxes"
+git commit -m "feat: show tax breakdown in tables for profit, lump sum, and salary taxes" <script>
+// منطق إظهار الأقسام
+document.getElementById('taxType').addEventListener('change', e=>{
+  document.querySelectorAll('.section').forEach(sec=>sec.classList.add('hidden'));
+  document.getElementById(e.target.value+'Section')?.classList.remove('hidden');
+});
+
+// ===== رسوم الطابع =====
+const STAMP_CATEGORIES = {
+  general:{type:'percentage',rate:0.004,label:'عقد بمبلغ محدد'},
+  guarantee:{type:'percentage',rate:0.003,label:'كفالة مالية'},
+  insurance:{type:'fixed',amount:5000,label:'وثائق تأمين'},
+  partnership:{type:'mixed',baseFee:25000,rate:0.005,label:'شركة أشخاص'},
+  jointStock:{type:'mixed',rate:0.005,publicRate:0.0025,label:'شركة مساهمة'},
+  llc:{type:'mixed',baseFee:25000,rate:0.005,label:'محدودة المسؤولية'},
+  documentNoAmount:{type:'fixed',amount:5000,label:'وثيقة بلا مبلغ'}
+};
+function populateStamp(){
+  const s=document.getElementById('stampCategory');
+  s.innerHTML='';
+  for(const k in STAMP_CATEGORIES){
+    const o=document.createElement('option');
+    o.value=k;o.textContent=STAMP_CATEGORIES[k].label;
+    s.appendChild(o);
+  }
+}
+populateStamp();
+
+document.getElementById('stampCalculate').addEventListener('click',()=>{
+  const cat=STAMP_CATEGORIES[document.getElementById('stampCategory').value];
+  const v=+document.getElementById('stampValue').value||0;
+  const cap=+document.getElementById('stampCapital').value||0;
+  const po=document.getElementById('stampPublicOffer').checked;
+  const copies=+document.getElementById('stampCopies').value||1;
+  let base=0;
+  if(cat){
+    if(cat.type==='percentage') base=v*cat.rate;
+    else if(cat.type==='fixed') base=cat.amount;
+    else if(cat.type==='mixed'){
+      const r=(po&&cat.publicRate)?cat.publicRate:cat.rate;
+      base=(cat.baseFee||0)+cap*r;
+    }
+  }
+  const duty=base,nat=duty*0.10,loc=duty*0.05,per=duty+nat+loc,total=per*copies;
+  let out=`الرسوم الأساسية: ${duty.toFixed(2)} ل.س\nالمساهمة الوطنية 10%: ${nat.toFixed(2)} ل.س\nرسم الإدارة المحلية 5%: ${loc.toFixed(2)} ل.س\nالإجمالي للنسخة الواحدة: ${per.toFixed(2)} ل.س`;
+  if(copies>1) out+=`\nالإجمالي لجميع النسخ: ${total.toFixed(2)} ل.س`;
+  document.getElementById('stampResult').textContent=out;
+  document.getElementById('stampResult').classList.remove('hidden');
+});
+
+// ===== البيوع العقارية =====
+const SALE_RATES={residential:0.01,commercial:0.03,landInside:0.02,landOutside:0.01,roof:0.01};
+document.getElementById('propCalculate').addEventListener('click',()=>{
+  const v=+document.getElementById('propValue').value||0;
+  const t=document.getElementById('propType').value;
+  const gift=document.getElementById('propGiftRelatives').checked;
+  let base=v*(SALE_RATES[t]||0.01);
+  if(gift) base*=0.15;
+  const loc=base*0.10,rec=base*0.10,total=base+loc+rec;
+  document.getElementById('propResult').textContent=`الضريبة الأساسية: ${base.toFixed(2)} ل.س\nإدارة محلية: ${loc.toFixed(2)} ل.س\nإعادة إعمار: ${rec.toFixed(2)} ل.س\nالإجمالي: ${total.toFixed(2)} ل.س`;
+  document.getElementById('propResult').classList.remove('hidden');
+});
+
+// ===== الإيجارات =====
+document.getElementById('rentCalculate').addEventListener('click',()=>{
+  const rent=+document.getElementById('rentValue').value||0;
+  const val=+document.getElementById('rentPropValue').value||0;
+  const use=document.getElementById('rentUseSimple').value;
+  const furn=document.getElementById('rentFurnished').checked;
+  const rate=use==='residential'?0.05:0.10;
+  const minF=use==='residential'?0.0003:0.0006;
+  const valueForMin=(use==='residential'&&furn)?val*1.25:val;
+  const tax=rent*rate;
+  const min=valueForMin*minF;
+  const due=Math.max(tax,min);
+  document.getElementById('rentResult').textContent=`من البدل: ${tax.toFixed(2)} ل.س\nالحد الأدنى: ${min.toFixed(2)} ل.س\nالمستحق: ${due.toFixed(2)} ل.س`;
+  document.getElementById('rentResult').classList.remove('hidden');
+});
+
+// ===== الأرباح =====
+const BRACKETS2024=[{l:10000000,r:0.10},{l:30000000,r:0.14},{l:100000000,r:0.18},{l:500000000,r:0.22},{l:Infinity,r:0.25}];
+function calcInd2024(p){let t=Math.max(0,p-3000000),prev=0,sum=0;for(const b of BRACKETS2024){let c=Math.min(t,b.l-prev);if(c<=0) break;sum+=c*b.r;t-=c;prev=b.l;}return sum;}
+function calcCorp(p,type){const map={jscPublic:0.15,companyOther:0.20,bankInsurance:0.25,oilGas:0.35};return p*(map[type]||0.20);}
+document.getElementById('profitCalculate').addEventListener('click',()=>{
+  const p=+document.getElementById('profitValue').value||0;
+  const tp=document.getElementById('profitTaxpayerType').value;
+  let base=tp==='individual'?calcInd2024(p):calcCorp(p,document.getElementById('profitCompanyType').value);
+  const loc=base*0.10,rec=base*0.10,total=base+loc+rec;
+  document.getElementById('profitResult').textContent=`الأساسية: ${base.toFixed(2)} ل.س\nإدارة محلية: ${loc.toFixed(2)} ل.س\nإعمار: ${rec.toFixed(2)} ل.س\nالإجمالي: ${total.toFixed(2)} ل.س`;
+  document.getElementById('profitResult').classList.remove('hidden');
+});
+
+// ===== المقطوع =====
+document.getElementById('lumpCalculate').addEventListener('click',()=>{
+  const t=+document.getElementById('lumpTurnover').value||0;
+  const m=+document.getElementById('lumpMargin').value||0;
+  const v=+document.getElementById('lumpVehicles').value||0;
+  const profit=Math.max(0,(t*(m/100))-(v*2000000));
+  const base=calcInd2024(profit);
+  const loc=base*0.10,rec=base*0.10,total=base+loc+rec;
+  document.getElementById('lumpResult').textContent=`الربح التقديري: ${profit.toFixed(2)} ل.س\nالأساسية: ${base.toFixed(2)} ل.س\nإدارة محلية: ${loc.toFixed(2)} ل.س\nإعمار: ${rec.toFixed(2)} ل.س\nالإجمالي: ${total.toFixed(2)} ل.س\nملاحظة: هذه نتيجة تقديرية.`;
+  document.getElementById('lumpResult').classList.remove('hidden');
+});
+
+// ===== الرواتب =====
+const salaryBrackets_2023_09=[{limit:250000,rate:0.05},{limit:450000,rate:0.07},{limit:650000,rate:0.09},{limit:850000,rate:0.11},{limit:1100000,rate:0.13},{limit:Infinity,rate:0.15}];
+const salaryBrackets_2024_03=[{limit:450000,rate:0.07},{limit:650000,rate:0.09},{limit:850000,rate:0.11},{limit:1100000,rate:0.13},{limit:Infinity,rate:0.15}];
+function calcSalaryTax(monthly,brackets){let remaining=monthly,prev=0,total=0,details=[];for(const b of brackets){let cap=Math.min(remaining,b.limit-prev);if(cap<=0) break;total+=cap*b.rate;details.push({amount:cap,rate:b.rate,tax:cap*b.rate});remaining-=cap;prev=b.limit;}return {total,details};}
+document.getElementById('salaryCalculate').addEventListener('click',()=>{
+  const income=+document.getElementById('salaryValue').value||0;
+  const period=document.getElementById('salaryDate').value;
+  const lump=document.getElementById('salaryLumpOption').checked;
+  if(lump){
+    const total=income*0.05;
+    document.getElementById('salaryResult').textContent=`الراتب: ${income} ل.س\nالضريبة المقطوعة 5%: ${total.toFixed(2)} ل.س`;
+    document.getElementById('salaryResult').classList.remove('hidden');return;
+  }
+  const brackets=period==='2023-09'?salaryBrackets_2023_09:salaryBrackets_2024_03;
+  const res=calcSalaryTax(income,brackets);
+  let out=\"\";res.details.forEach((d,i)=>{out+=`شريحة ${i+1}: ${d.amount} ل.س بنسبة ${(d.rate*100).toFixed(0)}% = ${d.tax.toFixed(2)} ل.س\\n`;});
+  out+=`الإجمالي: ${res.total.toFixed(2)} ل.س`;
+  document.getElementById('salaryResult').textContent=out;
+  document.getElementById('salaryResult').classList.remove('hidden');
+});
+
+// ===== مقارنة القوانين 24/51/30 =====
+function calcLaw24(p){const brackets=BRACKETS2024;let taxable=p-3000000,prev=0,total=0;for(const b of brackets){let cap=Math.min(taxable,b.l-prev);if(cap<=0) break;total+=cap*b.r;taxable-=cap;prev=b.l;}return total;}
+function calcDecree51(p){return p*0.28;}
+function calcDecree30(p,type){const map={jscPublic:0.15,companyOther:0.20,bankInsurance:0.25,oilGas:0.35};return p*(map[type]||0.20);}
+document.getElementById('compareCalculate').addEventListener('click',()=>{
+  const p=+document.getElementById('compareProfit').value||0;
+  const law24=calcLaw24(p),dec51=calcDecree51(p),jsc=calcDecree30(p,'jscPublic'),other=calcDecree30(p,'companyOther'),bank=calcDecree30(p,'bankInsurance'),oil=calcDecree30(p,'oilGas');
+  const values=[law24,dec51,jsc,other,bank,oil],min=Math.min(...values);
+  function setCell(id,value,rateId){const cell=document.getElementById(id),rateCell=document.getElementById(rateId);cell.textContent=value.toLocaleString();const eff=(value/p*100)||0;rateCell.textContent=eff.toFixed(2)+\"%\";cell.classList.remove('highlight-min');rateCell.classList.remove('highlight-min');if(value===min){cell.classList.add('highlight-min');rateCell.classList.add('highlight-min');}}
+  setCell('law24Cell',law24,'law24Rate');
+  setCell('dec51Cell',dec51,'dec51Rate');
+  setCell('dec30jscCell',jsc,'dec30jscRate');
+  setCell('dec30otherCell',other,'dec30otherRate');
+  setCell('dec30bankCell',bank,'dec30bankRate');
+  setCell('dec30oilCell',oil,'dec30oilRate');
+  document.getElementById('compareTable').classList.remove('hidden');
+});
+</script>
+
