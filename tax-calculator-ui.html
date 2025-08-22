@@ -10,11 +10,18 @@
     #bgVideo { position: fixed; right: 0; bottom: 0; min-width: 100%; min-height: 100%; width: auto; height: auto; z-index: -1; object-fit: cover; }
     /* Wrap calculator UI to center it over the video */
     .calculator-container { position: relative; z-index: 1; display:flex; flex-direction: column; align-items:center; justify-content:center; min-height: 100vh; padding:20px; }
-    h1 { margin-top:0; margin-bottom:20px; }
-    label { display:block; margin-top:10px; font-weight:600; }
-    input, select, button { width:100%; padding:8px; margin-top:4px; border:1px solid #ddd; border-radius:4px; font-size:14px; }
-    button { background:#1a5450; color:#fff; cursor:pointer; }
-    button:hover { background:#12423e; }
+    /* Heading styles */
+    h1 { margin-top:0; margin-bottom:25px; font-size:2rem; font-weight:700; }
+    h2 { margin-top:0; margin-bottom:15px; font-size:1.4rem; font-weight:600; border-bottom:1px solid rgba(0,0,0,0.1); padding-bottom:8px; }
+    /* Label styling */
+    label { display:block; margin-top:15px; font-weight:600; font-size:0.9rem; color:#1a5450; }
+    /* Input and select styling */
+    input, select { width:100%; padding:10px 12px; margin-top:6px; border:1px solid #aaa; border-radius:6px; font-size:0.9rem; background: rgba(255,255,255,0.95); color:#1a5450; }
+    /* Custom arrow for selects */
+    select { -webkit-appearance: none; -moz-appearance: none; appearance:none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='%231a5450' d='M5.516 7.548L10 12.032l4.484-4.484.816.816-5.3 5.3-5.3-5.3z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-size:12px; padding-right:32px; }
+    /* Button styling */
+    button { width:100%; padding:10px 14px; margin-top:10px; border:none; border-radius:6px; font-size:0.95rem; font-weight:600; color:#fff; background:#1a5450; box-shadow:0 2px 4px rgba(0,0,0,0.2); cursor:pointer; transition: background 0.3s ease; }
+    button:hover { background:#123e32; }
     /* Card-like sections with translucent backgrounds to reveal video */
     .section { margin-top:20px; padding:15px; border-radius:6px; background: rgba(255,255,255,0.85); border:1px solid rgba(255,255,255,0.4); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
     .hidden { display:none; }
