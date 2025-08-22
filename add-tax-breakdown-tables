@@ -1,0 +1,15 @@
+# Make sure you are on the main branch and up to date
+git checkout main
+git pull origin main
+
+# Copy the updated file (with tables) into your repo folder
+# 👉 tax-calculator-ui.html
+
+# Stage the change
+git add tax-calculator-ui.html
+
+# Commit
+git commit -m "feat: add table-based breakdown for profit, lump sum, and salary taxes"
+
+# Push directly to main
+git push origin main
